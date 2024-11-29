@@ -1,0 +1,29 @@
+# ------------------------------------------------------------------------------------------------ #
+#                                 This file is part of SequenceGUI                                 #
+# ------------------------------------------------------------------------------------------------ #
+
+cff-version: 1.2.0
+title: SequenceGUI
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Kai Adrian
+    family-names: Müller
+    affiliation: German Aerospace Center (DLR)
+  - given-names: Carsten
+    family-names: Klempt
+    affiliation: German Aerospace Center (DLR)
+  - given-names: Philipp
+    family-names: Barbey
+    affiliation: Leibniz University Hannover (LUH)
+  - given-names: Sven
+    family-names: Abend
+    affiliation: Leibniz University Hannover (LUH)
+  - given-names: Mikhail
+    family-names: Cheredinov
+    affiliation: Leibniz University Hannover (LUH)
+license: GPL-3.0
+doi: placeholder
+url: placeholder
