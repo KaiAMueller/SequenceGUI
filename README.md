@@ -84,7 +84,7 @@ QVLS-iLabs as part of the initiative
 Federal Ministry of Education and Research (BMBF)
 (Grant No. 03ZU1209IB).
 
-![sequence_example.png](./resources/images/Clusters4Future_Foederlogo_RGB-ENG.png)
+![sequence_example.png](./resources/images/Clusters4Future_Foederlogo_RGB-DEU.PNG)
 
 Part of this research was funded by the Federal
 Ministry for Economic Affairs and Climate
