@@ -351,7 +351,7 @@ Action (BMWK) due to an enactment of the German
 Bundestag under Grant 50NA2106 (QGyro+)
 """
         bmbf_image = QtW.QLabel()
-        bmbf_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/Clusters4Future_Foederlogo_RGB-ENG.png"))
+        bmbf_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/Clusters4Future_Foederlogo_RGB-DEU.PNG"))
         bmwk_image = QtW.QLabel()
         bmwk_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/bmwk.png"))
         luh_image = QtW.QLabel()
