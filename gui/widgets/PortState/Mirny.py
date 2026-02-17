@@ -193,6 +193,7 @@ class ConfigDialog(PortState.ConfigDialog):
     def updateVisibility(self):
         if self.isAboutToClose:
             return
+        self.configWidgets["skipInit"].setVisible(True)
         self.configWidgets["switch_enable"].setVisible(True)
         self.configWidgets["freq_enable"].setVisible(True)
         self.configWidgets["attenuation_enable"].setVisible(True)
@@ -203,6 +204,8 @@ class ConfigDialog(PortState.ConfigDialog):
         self.configWidgets["freq"].setVisible(freq_enable)
         self.configWidgets["attenuation"].setVisible(attenuation_enable)
         if crate.LabSetup.get(self.portName, "hasAlmazny"):
+            self.configWidgets["useAlmazny"].setVisible(True)
+            self.almaznyWarningLabel.setVisible(True)
             if self.configWidgets["useAlmazny"].get():
                 self.almaznyWarningLabel.setText("⚠️")
             else:

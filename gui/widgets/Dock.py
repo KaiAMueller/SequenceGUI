@@ -50,6 +50,7 @@ class Dock(QtW.QDockWidget):
             action = Design.Action(text, callback)
         self.settingsMenu.addAction(action)
         self.configWidgets[text] = action
+        return action
 
     def openSettingsMenu(self, event):
         self.settingsButton.setChecked(not self.settingsButton.isChecked())

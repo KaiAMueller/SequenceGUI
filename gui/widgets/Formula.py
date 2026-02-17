@@ -181,13 +181,13 @@ class SelectionDialog(Design.DialogDesign):
         self.setMinimumWidth(400)
         self.callback = callback
         formulas = {
-            "linear": "x",
-            "quadratic": "x^2",
-            "gauss": "exp(-(x-0.5)^2*8^2)",
-            "hann window": "0.5 - 0.5*cos(2*pi*x)",
-            "blackman window": "0.42 - 0.5*cos(2*pi*x) + 0.08*cos(4*pi*x)",
-            "half hann window": "0.5 - 0.5*cos(pi*x)",
-            "half blackman window": "0.42 - 0.5*cos(pi*x) + 0.08*cos(2*pi*x)",
+            "Lin   | linear": "x",
+            "Quad  | quadratic": "x^2",
+            "Gauss | Gauss": "exp(-(x-0.5)^2*8^2)",
+            "HW    | hann window": "0.5 - 0.5*cos(2*pi*x)",
+            "BW    | blackman window": "0.42 - 0.5*cos(2*pi*x) + 0.08*cos(4*pi*x)",
+            "HHW   | half hann window": "0.5 - 0.5*cos(pi*x)",
+            "HBW   | half blackman window": "0.42 - 0.5*cos(pi*x) + 0.08*cos(2*pi*x)",
         }
         maxButtonTextLength = max([len(name) + len(formula) for name, formula in formulas.items()])
         formulasWidgetsDicts = [
@@ -204,7 +204,7 @@ class SelectionDialog(Design.DialogDesign):
             for name, formula in formulas.items()
         ]
         for formulaWidgets in formulasWidgetsDicts:
-            formulaWidgets["button"].clicked.connect(lambda ignore, f=formulaWidgets["formula"]: self.buttonClicked(f))
+            formulaWidgets["button"].clicked.connect(lambda ignore, f={"name":formulaWidgets["name"], "formula":formulaWidgets["formula"]}: self.buttonClicked(f))
             formulaWidgets["button"].setFont(QtG.QFont("Consolas", 10))
             formulaWidgets["field"].textField.setVisible(False)
         self.layout().addWidget(

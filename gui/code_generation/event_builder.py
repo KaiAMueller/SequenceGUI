@@ -167,7 +167,8 @@ def addDevice(
                 cpldName = crate.device_db[deviceName]["arguments"]["cpld_device"]
                 if cpldName not in mirnyCplds:
                     mirnyCplds[cpldName] = MirnyCPLD(cpldName)
-                device = Mirny(deviceName, mirnyCplds[cpldName])
+                channel = crate.device_db[deviceName]["arguments"]["channel"]
+                device = Mirny(deviceName, channel, mirnyCplds[cpldName])
             elif crate.labsetup[portName]["module"] == "custom.CurrentDriver":
                 device = CurrentDriver(crate.labsetup[portName]["device"])
             else:
@@ -312,13 +313,14 @@ def generateAndAppendCurrentEvents(segment, devicesDict, events):
                 )
         elif crate.labsetup[portName]["module"] == "artiq.coredevice.adf5356":
             almaznyDeviceName = None
-            if portState["useAlmazny"]:
+            if "useAlmazny" in portState and portState["useAlmazny"]:
                 for d in crate.device_db:
-                    if "class" in crate.device_db[d] and crate.device_db[d]["class"] == "Almazny":
-                        if crate.device_db[d]["arguments"]["host_mirny"] == device.cpld.name:
+                    if "class" in crate.device_db[d] and crate.device_db[d]["class"] == "AlmaznyChannel":
+                        if crate.device_db[d]["arguments"]["host_mirny"] == device.cpld.name and crate.device_db[d]["arguments"]["channel"] == device.channel:
                             almaznyDeviceName = d
                             break
                 assert almaznyDeviceName is not None, "No almazny device found for mirny device " + device.name
+                device.setAlmaznyDeviceName(almaznyDeviceName)
             event = MirnyEvent(
                 time=segment["time"],
                 duration=segment["duration"],
@@ -327,7 +329,7 @@ def generateAndAppendCurrentEvents(segment, devicesDict, events):
                 freq=portState["freq"],
                 attenuation=portState["attenuation"],
                 skipInit=portState["skipInit"],
-                useAlmazny=portState["useAlmazny"],
+                useAlmazny=portState.get("useAlmazny"),
                 almaznyDeviceName=almaznyDeviceName,
             )
         elif crate.labsetup[portName]["module"] == "custom.CurrentDriver":

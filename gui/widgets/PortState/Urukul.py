@@ -150,7 +150,7 @@ Always check the output signal before using it in an experiment."""
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("ram_phase_formula"),
         )
-        self.configWidgets["ram_phase_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getChangedCallback("ram_phase_formula"))
+        self.configWidgets["ram_phase_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getFormulaChangedCallback("ram_phase_formula"))
 
         # amplitude RAM formula
         self.configWidgets["ram_amplitude_formula_label"] = QtW.QLabel("RAM Amplitude Formula")
@@ -160,7 +160,7 @@ Always check the output signal before using it in an experiment."""
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("ram_amplitude_formula"),
         )
-        self.configWidgets["ram_amplitude_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getChangedCallback("ram_amplitude_formula"))
+        self.configWidgets["ram_amplitude_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getFormulaChangedCallback("ram_amplitude_formula"))
 
         # frequency RAM formula
         self.configWidgets["ram_frequency_formula_label"] = QtW.QLabel("RAM Frequency Formula")
@@ -170,7 +170,7 @@ Always check the output signal before using it in an experiment."""
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("ram_frequency_formula"),
         )
-        self.configWidgets["ram_frequency_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getChangedCallback("ram_frequency_formula"))
+        self.configWidgets["ram_frequency_formula_selection_button"] = Formula.SelectionButton(text="📚", callback=self.getFormulaChangedCallback("ram_frequency_formula"))
 
         # ram profile
         self.configWidgets["ram_profile_label"] = QtW.QLabel("RAM Profile")

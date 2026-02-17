@@ -36,7 +36,7 @@ def argReader(s):
     return s
 
 
-def executeScript(script, args, kargs, rpcName, runVariables=None, exitFlag=None, logQueue=None):
+def executeScript(script, args, kargs, rpcName, runVariables=None, codeID=None, exitFlag=None, logQueue=None):
     try:
         gdict = {
             "print": (log if logQueue is None else lambda *logArgs: logQueue.put(logArgs)),
@@ -44,6 +44,7 @@ def executeScript(script, args, kargs, rpcName, runVariables=None, exitFlag=None
             "kargs": kargs,
             "exitFlag": exitFlag,
             "runVariables": runVariables,
+            "codeID": codeID,
         }
         exec(script, gdict)
     except Exception as e:
@@ -79,14 +80,22 @@ class Server:
         print(*args)
 
     def run(self, *args, **kargs):
+        if "codeID" in kargs:
+            codeID = kargs["codeID"]
+        else:  
+            codeID = None
         try:
             rpcName = args[0]
             args = [str(arg) for arg in args[1:]]
             currentRun = Playlist.dock.runObserver.getCurrentRunInfo()
             if currentRun is not None:
                 runVariables = currentRun["variables"]
+                if codeID is None:
+                    codeID = currentRun["codeID"]
             else:
                 runVariables = copy.deepcopy(crate.variables)
+                if codeID is None:
+                    codeID = "manual"
             script = crate.RPC.getScript(rpcName)
             mode = crate.RPC.getValue(rpcName, "mode")
             if managers[rpcName]["activeThreadOrProcess"] is not None:
@@ -95,7 +104,7 @@ class Server:
                 exitFlag = threading.Event()
                 thread = threading.Thread(
                     target=executeScript,
-                    args=(script, args, kargs, rpcName, runVariables, exitFlag),
+                    args=(script, args, kargs, rpcName, runVariables, codeID, exitFlag),
                 )
                 dock.setActiveThreadOrProcess(rpcName, thread, exitFlag)
                 thread.start()
@@ -110,6 +119,7 @@ class Server:
                         kargs,
                         rpcName,
                         runVariables,
+                        codeID,
                         exitFlag,
                         logQueue,
                     ),
@@ -122,7 +132,7 @@ class Server:
             elif mode == "normal":
                 exitFlag = threading.Event()
                 dock.setActiveThreadOrProcess(rpcName, "normal", exitFlag)
-                executeScript(script, args, kargs, rpcName, runVariables, exitFlag)
+                executeScript(script, args, kargs, rpcName, runVariables, codeID, exitFlag)
         except Exception as e:
             log(e)
 

@@ -13,12 +13,14 @@ import gui.widgets.Sequence as Sequence
 import gui.widgets.TableSequenceView as TableSequenceView
 import gui.widgets.Viewer as Viewer
 from gui.widgets.Log import log
+import gui.widgets.Input as Input
 
 dock = None
 title = "⏳ Sequence Editor"
 align_ports = "Align ports"
 show_full_portnames = "Show full portnames"
 rearrangable_portstates = "Rearrangable portstates"
+enable_big_run_button = "Enable big run button"
 
 
 def sequenceStarted(seqName):
@@ -26,6 +28,10 @@ def sequenceStarted(seqName):
     dock.currentlyRunningSequence = seqName
     dock.currentlyRunningSequenceButton.setText(f"🔴 {seqName}")
     dock.currentlyRunningSequenceButton.setHidden(False)
+    if dock.configWidget is not None:
+        if type(dock.configWidget) is Sequence.Widget:
+            dock.configWidget.setIsCurrentlyRunning(True)
+
 
 
 def sequenceFinished(seqName=None):
@@ -38,6 +44,9 @@ def sequenceFinished(seqName=None):
     dock.currentlyRunningSequenceButton.setHidden(True)
     if dock.currentlyRunningSequenceMenu is not None:
         dock.currentlyRunningSequenceMenu.close()
+    if dock.configWidget is not None:
+        if type(dock.configWidget) is Sequence.Widget:
+            dock.configWidget.setIsCurrentlyRunning(False)
 
 
 class Dock(gui.widgets.Dock.ListConfigDockExtension):
@@ -69,7 +78,11 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
             lambda checked: crate.Config.ValueChange(title, rearrangable_portstates, checked),
             crate.Config.getDockConfig(title, rearrangable_portstates),
         )
-
+        self.addSettingsAction(
+            enable_big_run_button,
+            lambda checked: crate.Config.ValueChange(title, enable_big_run_button, checked),
+            crate.Config.getDockConfig(title, enable_big_run_button),
+        )
 
         self.runButton = Design.RunButton()
         self.runButton.clicked.connect(self.runCurrentSequence)
@@ -88,9 +101,21 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
         self.currentlyRunningSequenceMenu = None
 
         self.setRightWidget(Design.HBox(self.showCompiledCodeButton, self.runButton))
-        self.setLeftWidget(self.currentlyRunningSequenceButton)
+        self.setLeftWidget(Design.HBox(self.currentlyRunningSequenceButton))
 
     def loadCrate(self):
+        # fix subsequence references
+        
+        for seqName, seqData in crate.sequences.items():
+            seqData["appearances"] = {}
+        for seqName, seqData in crate.sequences.items():
+            for segName, segData in seqData["segments"].items():
+                if segData["type"] == "subsequence":
+                    if seqName not in crate.sequences[segData["subsequence"]]["appearances"]:
+                        crate.sequences[segData["subsequence"]]["appearances"][seqName] = [segName]
+                    else:
+                        crate.sequences[segData["subsequence"]]["appearances"][seqName].append(segName)
+
         super(Dock, self).loadCrate(crate.sequences)
 
     def currentlyRunningSequenceClicked(self):
@@ -190,3 +215,7 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
             self.configWidget.alignDescriptions(value)
         elif option == show_full_portnames:
             self.configWidget.updateShowFullPortnames(value)
+        elif option == enable_big_run_button:
+            if self.configWidget is not None:
+                self.configWidget.updateReallyBigRunStopButtons(value)
+                

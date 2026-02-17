@@ -12,6 +12,10 @@ class Device:
         self.variableTokens = {}
         self.functions = []
 
+    def generate_setattr_string_code(self):
+        return f"""
+        self.setattr_device("{self.name}")"""
+
     def addEvent(self, event):
         if not isinstance(event, Event):
             raise Exception()

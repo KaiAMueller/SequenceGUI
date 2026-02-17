@@ -1,9 +1,13 @@
 import copy
 import time
+import os
 
 import numpy as np
 import PySide6.QtCore as QtC
 import PySide6.QtWidgets as QtW
+import PySide6.QtGui as QtG
+
+import threading
 
 import gui.artiq_master_manager as artiq_master_manager
 import gui.compiler
@@ -16,6 +20,7 @@ import gui.widgets.SequenceEditor as SequenceEditor
 import gui.widgets.Viewer as Viewer
 
 currentlyRunningVariables = None
+
 dock = None
 title = "🔁 Multi Run"
 
@@ -66,6 +71,8 @@ class Widget(Design.VBox):
             default=crate.MultiRun.getValue(self.name, "mode"),
             changedCallback=lambda mode: crate.MultiRun.ValueChange(self.name, "mode", mode),
         )
+        
+        
         self.addDimensionButton = Design.AlignedButton("Add Dimension")
         self.addDimensionButton.setFlat(True)
         self.addDimensionButton.clicked.connect(lambda: crate.MultiRun.DimensionAdd(self.name))
@@ -89,6 +96,7 @@ class Widget(Design.VBox):
                 dimensionWidget.stepsField.setVisible(stepsEnabled)
                 dimensionWidget.stepsLabel.setVisible(stepsEnabled)
 
+
     def addDimensionWidget(self, dimension):
         self.dimensionWidgets[dimension] = Dimension(dimension, self.name)
         pos = sorted(list(self.dimensionWidgets.keys())).index(dimension)
@@ -106,8 +114,10 @@ class Widget(Design.VBox):
         if crate.MultiRun.getValue(self.name, "mode") == "scan":
             self.scanRun()
         else:
-            Design.errorDialog("Error", "Only scan mode is supported right now.")
+            Design.errorDialog("Error", "Not implemented.")
 
+    
+    
     def scanRun(self):
         sequence = Design.comboBoxDialog(
             "Sequence",
@@ -236,7 +246,7 @@ class Dimension(Design.Frame):
         self.valueFields = {
             "steps": self.stepsField,
         }
-
+        
         self.menu = QtW.QMenu()
         self.menu.addAction(
             "Delete Dimension",

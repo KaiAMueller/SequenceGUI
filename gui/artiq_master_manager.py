@@ -63,31 +63,37 @@ def start(eventLoop):
         else:
             condaPath = settings.getAnacondaPath()
             if condaPath is None:
-                QtW.QMessageBox.critical(None, "Error", "No running artiq_master found. Close and start one or you can choose a conda installation path to start it automatically.")
+                QtW.QMessageBox.critical(None, "Error", "No running artiq_master found. Close and start one or you can choose a conda/msys2 installation path to start it automatically.")
                 condaPath = settings.choseAnacondaPath()
-            if not os.path.exists(condaPath + "/Scripts/activate.bat"):
-                raise Exception("conda activate script not found in " + condaPath + "/Scripts/activate.bat")
-            commands = [
-                condaPath + "/Scripts/activate.bat",
-                condaPath,
-                "&&",
-                "activate",
-                settings.getArtiqEnvName(),
-                "&&",
-                "cd",
-                cratePath,
-                "&&",
-                "artiq_master",
-                "--port-notify",
-                str(gui.crate.Config.get("port-notify")),
-                "--port-control",
-                str(gui.crate.Config.get("port-control")),
-                "--port-logging",
-                str(gui.crate.Config.get("port-logging")),
-                "--port-broadcast",
-                str(gui.crate.Config.get("port-broadcast")),
-            ]
-            process = subprocess.Popen(commands, stderr=subprocess.DEVNULL)
+            if os.path.exists(condaPath + "/Scripts/activate.bat"):
+                commands = [
+                    condaPath + "/Scripts/activate.bat",
+                    condaPath,
+                    "&&",
+                    "activate",
+                    settings.getArtiqEnvName(),
+                    "&&",
+                    "cd",
+                    cratePath,
+                    "&&",
+                    "artiq_master",
+                    "--port-notify",
+                    str(gui.crate.Config.get("port-notify")),
+                    "--port-control",
+                    str(gui.crate.Config.get("port-control")),
+                    "--port-logging",
+                    str(gui.crate.Config.get("port-logging")),
+                    "--port-broadcast",
+                    str(gui.crate.Config.get("port-broadcast")),
+                ]
+                process = subprocess.Popen(commands, stderr=subprocess.DEVNULL)
+            elif os.path.exists(condaPath + "/msys2_shell.cmd"):
+                commands = (f'{condaPath}/msys2_shell.cmd -clang64 -c "cd {settings.getCratePath()} && artiq_master --port-notify {gui.crate.Config.get("port-notify")} --port-control {gui.crate.Config.get("port-control")} --port-logging {gui.crate.Config.get("port-logging")} --port-broadcast {gui.crate.Config.get("port-broadcast")}; read -p \'Press enter to close\'')
+                print(commands)
+                process = subprocess.Popen(commands, stderr=subprocess.DEVNULL)
+            
+            else:
+                raise Exception("conda activate script not found in " + condaPath + "/Scripts/activate.bat\nmsys2_shell also not found")
 
         # wait for successfull start
         testConnection()

@@ -187,7 +187,7 @@ class Dock(gui.widgets.Dock.Dock):
                     segName = segDict["segName"]
                     if not segData["enabled"]:
                         continue
-                    if segData["type"] == "portstate":
+                    if segData["type"] in ["portstate", "triggerwait"]:
                         segmentDicts += [
                             {
                                 "seqName": seqName,
@@ -254,9 +254,14 @@ class Dock(gui.widgets.Dock.Dock):
                         if portName in segData["ports"]:
                             portNames.append(portName)
                             break
+                    elif segData["type"] == "triggerwait":
+                        if portName == segData["input_ttl"]:
+                            portNames.append(portName)
+                            break
 
         self.tableWidget.setRowCount(len(portNames))
         self.tableWidget.setVerticalHeaderLabels(portNames)
+        
 
         leftNeighboor = [None] * len(portNames)
         for j, segDict in enumerate(segmentDicts):
@@ -266,6 +271,16 @@ class Dock(gui.widgets.Dock.Dock):
                     item = TableWidgetItem("~", backgroundColor=(0.5, 0.5, 0.5))
                     self.tableWidget.setItem(i, j, item)
                     leftNeighboor[i] = None
+                elif segData["type"] == "triggerwait":
+                    if port == segData["input_ttl"]:
+                        item = TableWidgetItem(
+                            text="Trigger",
+                            pixmapInfo=None,
+                            backgroundColor=(0, 0, 1),
+                            onRightClick=None,
+                        )
+                        self.tableWidget.setItem(i, j, item)
+                        leftNeighboor[i] = item
                 elif segData["type"] == "portstate":
                     if port in segData["ports"]:
                         openConfigCall = None
@@ -294,9 +309,23 @@ class Dock(gui.widgets.Dock.Dock):
                             onRightClick=None,
                         )
                         self.tableWidget.setItem(i, j, item)
+                        
+                        
+        
+        
         # finalize render after all sizes are set (20 ms should be one frame at 50+ fps)
         QtC.QTimer.singleShot(100, lambda: self.finalizeRendering(segmentDicts, portNames))
+        
+        
+        
+        
 
+    def addGroupLabel(self, label, count):
+        # Add group labels with a spacer between them
+        self.leftLayout.addWidget(QtW.QLabel(label))
+        for _ in range(count):
+            self.leftLayout.addWidget(QtW.QLabel())  # Add a spacer for rows in this group
+            
     def finalizeRendering(self, segmentDicts, portNames):
         lastX = [0] * 5
         for i in range(5):
@@ -311,6 +340,8 @@ class Dock(gui.widgets.Dock.Dock):
 
         for j in range(len(segmentDicts)):
             for i in range(len(portNames)):
+                if self.tableWidget.item(i, j) is None:
+                    continue
                 self.tableWidget.item(i, j).renderPixmap(self.tableWidget.columnWidth(j), self.tableWidget.rowHeight(i))
             x = self.tableWidget.columnViewportPosition(j) + self.tableWidget.verticalHeader().width() + 2
             for i in range(5):

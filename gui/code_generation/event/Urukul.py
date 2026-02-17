@@ -166,25 +166,26 @@ class UrukulRamEvent(UrukulEvent):
         for i in range({self.step_count}):
             x = i / {self.step_count}"""
         )
+        # RAM playback is reversed, so we reverse it here to get proper playback
         if self.ram_destination == "RAM_DEST_ASF":
             code += f"""
-            ram_amp_data[i] = min(1.0, max(0.0, {self.ram_amplitude_formula}))
+            ram_amp_data[{self.step_count-1}-i] = min(1.0, max(0.0, {self.ram_amplitude_formula}))
         self.{self.device.name}.amplitude_to_ram(ram_amp_data, self.{self.variable_name_ram_data})
             """
         if self.ram_destination == "RAM_DEST_POW":
             code += f"""
-            ram_phase_data[i] = {self.ram_phase_formula}
+            ram_phase_data[{self.step_count-1}-i] = {self.ram_phase_formula}
         self.{self.device.name}.turns_to_ram(ram_phase_data, self.{self.variable_name_ram_data})
             """
         if self.ram_destination == "RAM_DEST_FTW":
             code += f"""
-            ram_frequency_data[i] = {self.ram_frequency_formula}
+            ram_frequency_data[{self.step_count-1}-i] = {self.ram_frequency_formula}
         self.{self.device.name}.frequency_to_ram(ram_frequency_data, self.{self.variable_name_ram_data})
             """
         if self.ram_destination == "RAM_DEST_POWASF":
             code += f"""
-            ram_amp_data[i] = min(1.0, max(0.0, {self.ram_amplitude_formula}))
-            ram_phase_data[i] = {self.ram_phase_formula}
+            ram_amp_data[{self.step_count-1}-i] = min(1.0, max(0.0, {self.ram_amplitude_formula}))
+            ram_phase_data[{self.step_count-1}-i] = {self.ram_phase_formula}
         self.{self.device.name}.turns_amplitude_to_ram(ram_phase_data, ram_amp_data, self.{self.variable_name_ram_data})
             """
         return code

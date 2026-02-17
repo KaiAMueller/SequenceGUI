@@ -7,7 +7,11 @@ import gui.artiq_master_manager
 import gui.widgets.Design as Design
 import gui.widgets.Dock
 import gui.widgets.SequenceEditor as SequenceEditor
+import gui.widgets.Git as Git
 import gui.crate.FileManager as FileManager
+import gui.widgets.Sequence
+import gui.widgets.MultiRun as MultiRun
+import gui.crate.Config as Config
 
 import datetime
 
@@ -36,7 +40,19 @@ def sequenceStarted(codeID):
 def sequenceFinished(codeID):
     dock.dataReader.updateStatusByCodeID(str(codeID), "done")
     dock.runObserver.removeRunInfo(str(codeID))
+    
+    if Config.getDockConfig(Git.title, Git.auto_commit_on_run):
+        Git.dock.commitOnRun()
 
+
+            
+    
+    
+
+def stopRunningSequenceByName(seqName):
+    rid = dock.dataReader.currentlyRunningRID
+    if dock.dataReader.treeItems[rid].seqName == seqName:
+        asyncio.ensure_future(gui.artiq_master_manager.rpcClient.delete(int(rid)))
 
 def deleteRID(rid=None):
     if rid is None:
@@ -78,6 +94,7 @@ class RunObserver:
     def addRunInfo(self, codeID, seqName, variables):
         self.runs[codeID] = {
             "seqName": seqName,
+            "codeID": codeID,
             "variables": variables,
         }
 

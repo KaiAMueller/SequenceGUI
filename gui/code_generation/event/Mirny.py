@@ -54,8 +54,7 @@ class MirnyEvent(Event):
 
             if self.attenuation is not None:
                 code += f"""
-        self.{self.almaznyDeviceName}.set_att({self.channel}, {self.attenuation}, {self.switch})
-        self.{self.almaznyDeviceName}.output_toggle(True)"""
+        self.{self.almaznyDeviceName}.set({self.attenuation}, {self.switch})"""
         return code
 
     def generatePrepareCode(self):

@@ -71,7 +71,7 @@ ACTION_TYPES = {
     },
     "config": {
         "valuechange": Config.ValueChange,
-    },
+    }
 }
 
 
@@ -112,9 +112,10 @@ def redo():
 def appendToUndoStack(action):
     undoStack.append(action)
     redoStack.clear()
-    for window in gui.windows:
-        window.undoAction.setEnabled(True)
-        window.redoAction.setEnabled(False)
+    if gui is not None:
+        for window in gui.windows:
+            window.undoAction.setEnabled(True)
+            window.redoAction.setEnabled(False)
     updateHistoryText()
 
 

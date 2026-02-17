@@ -53,8 +53,7 @@ def generateBuildCode(devices):
 
     # insert used device names into code template
     for device in devices:
-        buildCode += f"""
-        self.setattr_device("{device.name}")"""
+        buildCode += device.generate_setattr_string_code()
 
     for externalGenerator in externalBuildGenerators:
         externalBuild = externalGenerator()

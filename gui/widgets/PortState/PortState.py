@@ -53,7 +53,8 @@ class Widget(Design.HBox):
             self.textLabel.setText(self.portName.split("/")[-1])
 
     def valueChange(self, valueName, newValue):
-        self.configWidgets[valueName].set(newValue)
+        if valueName in self.configWidgets:
+            self.configWidgets[valueName].set(newValue)
         self.updatePreviewWidget()
         if self.configDialog is not None:
             self.configDialog.updateVisibility()
@@ -105,6 +106,26 @@ class Widget(Design.HBox):
             valueName,
             value,
         )
+    def getFormulaChangedCallback(self, valueName):
+        return lambda value: self.formulaChangedCallback(valueName,value)
+            
+    def formulaChangedCallback(self, valueName, value):
+        crate.Sequences.PortStateValueChange(
+            self.segment.sequence.name,
+            self.segment.name,
+            self.portName,
+            valueName,
+            value["formula"],
+        )
+        
+        # crate.Sequences.PortStateValueChange(
+            # self.segment.sequence.name,
+            # self.segment.name,
+            # self.portName,
+            # valueName + "_name",
+            # value["name"],
+        # )
+        
     def mouseMoveEvent(self, e):
         if crate.Config.getDockConfig(SequenceEditor.title, SequenceEditor.rearrangable_portstates) and e.buttons() == QtC.Qt.MouseButton.LeftButton:
             drag = QDrag(self)

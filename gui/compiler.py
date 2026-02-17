@@ -49,6 +49,13 @@ def compileCode(seqName):
 
 
 def compileAndRun(seqName):
+
+    try:
+        compiledCode, codeID, duration = compileCode(seqName)
+    except Exception as e:
+        log(e)
+        return
+    
     pre_compile_rpc = crate.Sequences.getSequenceValue(seqName, "pre_compile_rpc")
     if pre_compile_rpc is not None:
         log(f"Running pre compile rpc {pre_compile_rpc} for sequence {seqName}")
@@ -60,15 +67,10 @@ def compileAndRun(seqName):
                 if arg == "":
                     continue
                 args.append(Variables.replacer(arg))
-            RPC.Server.run(RPC.Server(), pre_compile_rpc, *args)
+            RPC.Server.run(RPC.Server(), pre_compile_rpc, *args, codeID=codeID)
         except Exception as e:
             log(e)
 
-    try:
-        compiledCode, codeID, duration = compileCode(seqName)
-    except Exception as e:
-        log(e)
-        return
 
     variables = copy.deepcopy(MultiRun.currentlyRunningVariables) if MultiRun.currentlyRunningVariables is not None else copy.deepcopy(crate.variables)
     Playlist.sequenceCompiled(codeID, seqName, variables)
@@ -118,7 +120,7 @@ def compileAndRun(seqName):
     except ConnectionRefusedError as e:
         log(e)
     log(f"Sequence {seqName} submitted")
-
+    
 
 def stopRun():
     target = "master_schedule" if int(crate.Config.get("artiqVersion")) <= 7 else "schedule"
@@ -294,6 +296,9 @@ def compileDAC(portName, portState):
     if portState["formula_enable"]:
         compiledPortState["formula_text"] = Input.getValueFromState(portState["formula_text"], reader=str, replacer=Variables.replacer)
         assert compiledPortState["formula_text"] is not None, "Failed to get formula text"
+    if portState["loadData_enable"]:
+        compiledPortState["loaded_dataset"] = portState["loaded_dataset"]
+        assert compiledPortState["loaded_dataset"] is not None, "Failed to get dataset"
     return compiledPortState
 
 

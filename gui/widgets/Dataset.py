@@ -5,6 +5,7 @@ import pyqtgraph as pyqtg
 import PySide6.QtGui as QtG
 import PySide6.QtWidgets as QtW
 import scipy as sp
+import ntpath
 
 import gui.settings as settings
 import gui.widgets.Design as Design
@@ -84,6 +85,10 @@ class Dialog(Design.DialogDesign):
         self.importDataButton = Design.Button("Import Data")
         self.importDataButton.clicked.connect(self.importDataButtonClicked)
 
+        if "importDataFileName" not in self.dataset:
+            self.dataset["importDataFileName"] = "Custom"
+        self.importDataFileNameWidget = QtW.QLabel(self.dataset["importDataFileName"])
+
         backgroundColor = (32, 33, 36) if settings.getDarkmode() else (255, 255, 255)
 
         self.plotWidget = pyqtg.PlotWidget(self)
@@ -107,6 +112,7 @@ class Dialog(Design.DialogDesign):
                     Design.HBox(self.sortDataButton, Design.Spacer(), self.plotStatusLabel),
                     Design.HBox(
                         self.importDataButton,
+                        self.importDataFileNameWidget,
                         Design.Spacer(),
                         "Interpolation Mode:",
                         self.interpolationModeCombobox,
@@ -143,6 +149,8 @@ class Dialog(Design.DialogDesign):
             self.dataset["x" if item.column() == 0 else "y"][item.row()] = float(item.text())
         except Exception:
             pass
+        self.dataset["importDataFileName"] = "Custom"
+        self.importDataFileNameWidget.setText(self.dataset["importDataFileName"])
         self.updatePlot()
 
     def addRow(self):
@@ -152,6 +160,8 @@ class Dialog(Design.DialogDesign):
         self.tableWidget.setRowHeight(len(self.dataset["x"]) - 1, 15)
         self.tableWidget.setItem(len(self.dataset["x"]) - 1, 0, QtW.QTableWidgetItem(str(0)))
         self.tableWidget.setItem(len(self.dataset["x"]) - 1, 1, QtW.QTableWidgetItem(str(0)))
+        self.dataset["importDataFileName"] = "Custom"
+        self.importDataFileNameWidget.setText(self.dataset["importDataFileName"])
         self.updatePlot()
 
     def removeRow(self):
@@ -159,6 +169,8 @@ class Dialog(Design.DialogDesign):
             self.dataset["x"].pop()
             self.dataset["y"].pop()
             self.tableWidget.setRowCount(len(self.dataset["x"]))
+            self.dataset["importDataFileName"] = "Custom"
+            self.importDataFileNameWidget.setText(self.dataset["importDataFileName"])
             self.updatePlot()
 
     def updatePlot(self):
@@ -194,6 +206,8 @@ class Dialog(Design.DialogDesign):
 
     def importDataButtonClicked(self):
         path = QtW.QFileDialog.getOpenFileName(self, "Import Data", "", "CSV (*.csv);;All Files (*)")[0]
+        self.dataset["importDataFileName"] = ntpath.basename(path)
+        self.importDataFileNameWidget.setText(self.dataset["importDataFileName"])
         if path == "" or path is None:
             return
         ImportDataDialog(self.dataset, path, self.dimensions).exec()

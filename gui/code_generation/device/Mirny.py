@@ -2,11 +2,24 @@ from .Device import Device
 
 
 class Mirny(Device):
-    def __init__(self, name, cpld):
+    def __init__(self, name, channel, cpld):
         super().__init__(name, [cpld])
         self.enabled = None
         self.cpld = cpld
+        self.channel = channel
+        self.almaznyDeviceName = None
         self.cpld.addChannel(self)
+
+    def setAlmaznyDeviceName(self, almaznyDeviceName):
+        self.almaznyDeviceName = almaznyDeviceName
+
+    def generate_setattr_string_code(self):
+        code = f"""
+        self.setattr_device("{self.name}")"""
+        if self.almaznyDeviceName is not None:
+            code += f"""
+        self.setattr_device("{self.almaznyDeviceName}")"""
+        return code
 
     def generateInitCode(self):
         return ""

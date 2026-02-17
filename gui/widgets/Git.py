@@ -1,4 +1,11 @@
+
+
+import os
 import git
+import difflib
+import json
+import datetime
+
 import PySide6.QtCore as QtC
 import PySide6.QtGui as QtG
 import PySide6.QtWidgets as QtW
@@ -24,13 +31,31 @@ GIT_IGNORE = """
 !device_db.py
 !config.json
 !rpc.json
-!scripts
+!/scripts
+!/scripts/*.py
 """
+DEFAULT_CHECKOUT_FILES = [
+    "sequences.seq",
+    "labsetup.lab",
+    "variables.json",
+    "multiruns.json",
+    "device_db.py",
+    "config.json",
+    "rpc.json"
+]
+DEFAULT_WARN_USER = [
+    "labsetup.lab",
+    "device_db.py",
+    "config.json",
+]
+auto_commit_on_run = "Auto Commit on Run"
+auto_push_on_commit = "Auto Push on Commit"
+title = "🚀 Git"
 
 
 class Dock(gui.widgets.Dock.Dock):
     def __init__(self, gui):
-        super(Dock, self).__init__("🚀 Git", gui)
+        super(Dock, self).__init__(title, gui)
         global dock
         dock = self
 
@@ -45,6 +70,7 @@ class Dock(gui.widgets.Dock.Dock):
 
         # commit button
         self.commitButton = QtW.QPushButton("Commit")
+        self.updateCommitButtonText()
         self.commitButton.clicked.connect(self.commitButtonPressed)
 
         # commit log table
@@ -56,6 +82,29 @@ class Dock(gui.widgets.Dock.Dock):
         self.commitLogSearch.editingFinished.connect(lambda: self.commitLogTable.search(self.commitLogSearch.text()))
 
         self.loadRepo()
+
+        # auto push on commit checking
+        self.addSettingsAction(
+            auto_push_on_commit,
+            lambda checked: crate.Config.ValueChange(title, auto_push_on_commit, checked),
+            crate.Config.getDockConfig(title, auto_push_on_commit),
+        )
+        
+        # auto commit on run checking
+        self.addSettingsAction(
+            auto_commit_on_run,
+            lambda checked: crate.Config.ValueChange(title, auto_commit_on_run, checked),
+            crate.Config.getDockConfig(title, auto_commit_on_run),
+        )
+
+        # set remote URL action
+        self.setRemoteURLAction = self.addSettingsAction(
+            "",
+            self.setRemoteURL,
+            False,
+            False,
+        )
+        self.updateRemoteURLActionText()
 
         # set widget
         self.setWidget(
@@ -74,6 +123,35 @@ class Dock(gui.widgets.Dock.Dock):
             )
         )
 
+    def configChange(self, option, value):
+        super(Dock, self).configChange(option, value)
+        if option == auto_push_on_commit:
+            self.updateCommitButtonText()
+    
+    def updateCommitButtonText(self):
+        self.commitButton.setText("Commit and Push" if crate.Config.getDockConfig(title, auto_push_on_commit) else "Commit")
+
+    def setRemoteURL(self):
+        # get current remote URL
+        currentRemoteURL = self.repo.remotes.origin.url if self.repo.remotes else ""
+
+        # get new remote URL
+        newRemoteURL = Design.inputDialog("Set Remote URL", "Enter new remote URL", currentRemoteURL)
+        if newRemoteURL is None or newRemoteURL == "":
+            return
+
+        # set remote URL
+        if self.repo.remotes:
+            self.repo.remotes.origin.set_url(newRemoteURL)
+        else:
+            self.repo.create_remote("origin", newRemoteURL)
+
+        Design.infoDialog("Set Remote URL", f"Remote URL set to {newRemoteURL}")
+        self.updateRemoteURLActionText()
+
+    def updateRemoteURLActionText(self):
+        self.setRemoteURLAction.setText(f"Set remote URL [{self.repo.remotes.origin.url if self.repo.remotes else ''}]")
+
     def loadRepo(self):
         # check if repo exists
         cratePath = settings.getCratePath()
@@ -89,7 +167,8 @@ class Dock(gui.widgets.Dock.Dock):
             self.commit("First Startup; Initial Commit")
             log("Created repo at " + self.path())
 
-        # create/update gitignore
+        # create gitignore if doesnt exist
+        #if not os.path.exists(self.path() + "/.gitignore"):
         with open(self.path() + "/.gitignore", "w") as f:
             f.write(GIT_IGNORE)
 
@@ -106,11 +185,32 @@ class Dock(gui.widgets.Dock.Dock):
         branchName = self.getActiveBranchName()
         self.branchButton.setText(branchName if branchName is not None else "DETACHED HEAD")
 
+    def commitOnRun(self):
+
+        date_string = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.commit("auto commit on run at " + date_string)
+
+        if crate.Config.getDockConfig(title, auto_push_on_commit):
+            # push changes
+            try:
+                self.repo.git.push("--set-upstream", "origin", self.getActiveBranchName())
+            except Exception as e:
+                log("Error pushing changes:")
+                log(e)
+                
     def commitButtonPressed(self):
 
         # commit changes
         self.commit(self.commitLineEdit.text())
         self.commitLineEdit.setText("")
+
+        if crate.Config.getDockConfig(title, auto_push_on_commit):
+            # push changes
+            try:
+                self.repo.git.push("--set-upstream", "origin", self.getActiveBranchName())
+            except Exception as e:
+                log("Error pushing changes:")
+                log(e)
 
     def commit(self, commit_msg):
         # track files and changes
@@ -278,7 +378,61 @@ class Dock(gui.widgets.Dock.Dock):
             log(return_message)
             return
         crate.gui.loadCrate()
+    def checkoutFiles(self, commitHexsha,Files=DEFAULT_CHECKOUT_FILES):
+        # get current commit
+        currentCommit = self.repo.head.commit
 
+        # checkout commit
+        self.loadCheckoutFiles(commitHexsha)
+
+        # update commit log
+        self.commitLogTable.loadTable(self.repo)
+
+        # update branch button text
+        self.updateBranchButtonText()
+
+    def loadCheckoutFiles(self, checkoutTarget, Files=DEFAULT_CHECKOUT_FILES, WarnFiles=DEFAULT_WARN_USER):
+        # save current crate
+        crate.FileManager.save()
+
+        # check for untracked changes
+        if self.repo.is_dirty():
+            if not Design.confirmationDialog(
+                "Untracked changes",
+                f"You will make local changes to:\n{Files} \nThose will be lost if you don't commit them. Are you sure?",
+            ):
+                return
+        # checkout target
+        log(f"Checking out {checkoutTarget}")
+        try:
+            for file in Files:
+                difference = self.show_diff(file,checkoutTarget)
+                #Warn user if important files are changed
+                if file in WarnFiles and difference != "":
+                    Design.infoDialog(f"Diff {file} in commit {checkoutTarget}", f"Differences \n{difference}")
+                self.repo.git.checkout(checkoutTarget, '--', file)
+        except Exception as e:
+            log(e)
+            return
+
+        # load crate
+        success, return_message = crate.FileManager.load()
+        if not success:
+            log("Error loading crate:")
+            log(return_message)
+            return
+        crate.gui.loadCrate()
+        
+    def show_diff(self,file_path, commit_hash):
+        # Use git show to get the file content from the specified commit
+        commit_file_content = self.repo.git.show(f'{commit_hash}:{file_path}')
+        
+        # Compare these contents
+        diff = self.repo.git.diff(commit_hash, '--', file_path)
+       
+        return diff
+        
+        
 
 class CommitLogTable(QtW.QTableWidget):
     def __init__(self, dock):
@@ -336,8 +490,11 @@ class CommitLogTable(QtW.QTableWidget):
 
         # checkout commit action
         commitHash = self.item(entry.row(), 0).text()
-        menu.addAction("Checkout Commit", lambda: self.dock.checkoutCommit(commitHash))
-
+        actionCheckoutCommit = menu.addAction("Checkout Commit", lambda: self.dock.checkoutCommit(commitHash))
+        actionCheckoutCommit.setToolTip("Load all files from the specified commit, changes in HEAD")
+        actionLoadFiles = menu.addAction("Load", lambda: self.dock.checkoutFiles(commitHash))
+        actionLoadFiles.setToolTip("Load specified (by Git.py) files from the commit, no change in HEAD")
+        menu.setToolTipsVisible(True)
         # show menu
         menu.exec(a0.globalPos())
 

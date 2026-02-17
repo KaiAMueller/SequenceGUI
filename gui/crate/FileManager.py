@@ -24,7 +24,7 @@ FILES = {
     "config.json": {"crate_attr": "config"},
     "variables.json": {"crate_attr": "variables"},
     "multiruns.json": {"crate_attr": "multiruns"},
-    "rpc.json": {"crate_attr": "rpcs"},
+    "rpc.json": {"crate_attr": "rpcs"}
 }
 
 FOLDERS = {
@@ -169,7 +169,6 @@ def saveSequenceData(seqName, RID=''):
         log(f"Error: saving {fileInfo} to {seqFilePath} failed")
         
     
-
 
 def saveConfig():
     saveCrateData("config.json")
