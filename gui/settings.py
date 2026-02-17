@@ -136,7 +136,7 @@ def getAnacondaPath():
     return data["anacondaPath"]
 
 def choseAnacondaPath():
-    data["anacondaPath"] = QFileDialog.getExistingDirectory(None, "Anaconda Directory Path", str(Path.home()))
+    data["anacondaPath"] = QFileDialog.getExistingDirectory(None, "Anaconda/Msys2 Directory Path", str(Path.home()))
     saveSettings()
     return data["anacondaPath"]
 

@@ -7,6 +7,8 @@ import PySide6.QtCore as QtC
 import PySide6.QtGui as QtG
 import PySide6.QtWidgets as QtW
 
+import importlib.util
+
 import gui.crate as crate
 import gui.crate.Versioneer as Versioneer
 import gui.settings as settings
@@ -142,6 +144,32 @@ class Gui:
         self.loadCrate()
         settings.setChangeCrate(False)
 
+        searchFolder = "./gui/plugins"
+        mainModuleName = "main"
+
+
+        def getPlugins():
+            plugins = []
+            possiblePlugins = os.listdir(searchFolder)
+            for pluginFolder in possiblePlugins:
+                location = os.path.join(searchFolder, pluginFolder, f"{mainModuleName}.py")
+                if os.path.isfile(location):
+                    module_name = f"{pluginFolder}_{mainModuleName}"  # unique name per plugin
+                    spec = importlib.util.spec_from_file_location(module_name, location)
+                    if spec is not None:
+                        plugins.append({"path": pluginFolder, "spec": spec})
+            return plugins
+
+        def loadPlugin(plugin):
+            module = importlib.util.module_from_spec(plugin["spec"])
+            plugin["spec"].loader.exec_module(module)
+            return module
+
+        for plugin in getPlugins():
+            loadedPlugin = loadPlugin(plugin)
+            loadedPlugin.run()
+
+
     def createWindow(self):
         window = GuiWindow(self)
         self.windows.append(window)
@@ -210,6 +238,10 @@ class Gui:
     def updateAppearance(self, darkmode):
         settings.setDarkmode(darkmode)
         TableSequenceView.updateTable()
+    
+    def updateCrateIcon(self):
+        for window in self.windows:
+            window.updateCrateIcon()
 
 
 class GuiWindow(QtW.QMainWindow):
@@ -351,7 +383,7 @@ Action (BMWK) due to an enactment of the German
 Bundestag under Grant 50NA2106 (QGyro+)
 """
         bmbf_image = QtW.QLabel()
-        bmbf_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/Clusters4Future_Foederlogo_RGB-DEU.PNG"))
+        bmbf_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/Clusters4Future_Foederlogo_RGB-ENG.png"))
         bmwk_image = QtW.QLabel()
         bmwk_image.setPixmap(QtG.QPixmap(os.getcwd() + "/resources/images/bmwk.png"))
         luh_image = QtW.QLabel()

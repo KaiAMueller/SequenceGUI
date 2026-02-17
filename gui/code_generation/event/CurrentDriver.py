@@ -12,7 +12,9 @@ class CurrentDriverEvent(Event):  # For the CurrentDriver 1V on DAC will output 
         self.sweepVariableName = self.device.generateVariableName("sweep_voltage")
         self.stepTimeVariableName = self.device.generateVariableName("step_time")
         self.stepCount = hardware_util.getCurrentDriverStepCount(duration)
-        self.stepTime = duration / self.stepCount
+        self.stepTime = duration / self.stepCount - 528e-9  # 528 ns because 125 MHz RTIO Clock, divided by 2 -> 62.5 MHz -> 16ns per step, -> times 33 steps is 528 ns
+        assert self.stepTime > -1e-9, "CurrentDriver Error: Step time too small, you may need to increase the duration."
+        self.stepTime = max(self.stepTime, 0)
         self.sweepData = []
         if self.sweep_voltage is not None:
             dataX, dataY = hardware_util.formulaTextToDataPoints(self.stepCount, formula_text)
@@ -38,7 +40,7 @@ class CurrentDriverHandler:
 
     @kernel
     def set_voltage_mu(self, voltage_mu):
-        self.spi.set_config_mu(CURRENT_DRIVER_SPI_CONFIG | spi.SPI_END, 32, 125, 1)
+        self.spi.set_config_mu(CURRENT_DRIVER_SPI_CONFIG | spi.SPI_END, 32, 2, 1)
         self.spi.write(voltage_mu)
 """
 
@@ -46,8 +48,8 @@ class CurrentDriverHandler:
         if self.sweep_voltage is not None:
             code = f"""
         for i in range({self.stepCount}):
-            delay_mu(self.{self.stepTimeVariableName})
-            self.{self.device.handlerVariableName}.set_voltage_mu(self.{self.sweepVariableName}[i])"""
+            self.{self.device.handlerVariableName}.set_voltage_mu(self.{self.sweepVariableName}[i])
+            delay_mu(self.{self.stepTimeVariableName})"""
         else:
             code = f"""
         self.{self.device.handlerVariableName}.set_voltage_mu(self.{self.voltageVariableName})"""

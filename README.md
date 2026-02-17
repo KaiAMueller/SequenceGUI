@@ -6,9 +6,13 @@ Based on the ARTIQ architecture provided by M-Labs (https://github.com/m-labs/ar
 
 
 ## Installation
-Installing required packages (Python >= 3.11):
 
-    pip install numpy scipy PySide6 qasync pyqtgraph gitpython pyqtdarktheme-fork watchdog playsound==1.2.2 git+https://github.com/m-labs/sipyco
+Installing required packages (Python = 3.10):
+
+### SequenceGUI install:
+
+
+pip install numpy scipy PySide6 qasync pyqtgraph gitpython pyqtdarktheme-fork watchdog playsound==1.2.2 git+https://github.com/m-labs/sipyco
 
 Starting SequenceGUI:
 
@@ -84,7 +88,7 @@ QVLS-iLabs as part of the initiative
 Federal Ministry of Education and Research (BMBF)
 (Grant No. 03ZU1209IB).
 
-![sequence_example.png](./resources/images/Clusters4Future_Foederlogo_RGB-DEU.PNG)
+![sequence_example.png](./resources/images/Clusters4Future_Foederlogo_RGB-ENG.png)
 
 Part of this research was funded by the Federal
 Ministry for Economic Affairs and Climate

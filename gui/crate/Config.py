@@ -18,6 +18,7 @@ locations = {}
 def init():
     import gui.widgets.SequenceEditor
     import gui.widgets.TableSequenceView
+    import gui.widgets.Git
 
     global default_config, locations
     default_config[gui.widgets.TableSequenceView.title] = {
@@ -28,10 +29,16 @@ def init():
         gui.widgets.SequenceEditor.align_ports: True,
         gui.widgets.SequenceEditor.show_full_portnames: False,
         gui.widgets.SequenceEditor.rearrangable_portstates: False,
+        gui.widgets.SequenceEditor.enable_big_run_button: True,
+    }
+    default_config[gui.widgets.Git.title] = {
+        gui.widgets.Git.auto_push_on_commit: False,
+        gui.widgets.Git.auto_commit_on_run: False,
     }
     locations = {
         gui.widgets.SequenceEditor.title: gui.widgets.SequenceEditor,
         gui.widgets.TableSequenceView.title: gui.widgets.TableSequenceView,
+        gui.widgets.Git.title: gui.widgets.Git,
     }
 
 

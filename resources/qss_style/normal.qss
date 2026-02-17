@@ -31,6 +31,9 @@ QPushButton#large { padding-left: 20px; padding-right: 20px; }
 QPushButton#leftAlignedButton { text-align:left; }
 QPushButton#rightAlignedButton { text-align:right; }
 
+QPushButton#reallyBigRunButton { color: green; text-align:left; font-size: 30px; }
+QPushButton#reallyBigStopButton { color: red; text-align:left; font-size: 30px; }
+
 QPushButton#PassiveButton { text-align:left; }
 QPushButton#subSequenceButton { text-align:left; font-size: 8px; }
 

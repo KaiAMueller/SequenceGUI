@@ -25,8 +25,19 @@ def getUniqueKey(d: dict, name: str = "") -> str:
 
 def unitValueToText(value: dict) -> str:
     return f"{value['text']} {value['unit']['text']}"
+    
+def unitValueToValue(value: dict, replacer = None) -> float:
+    if replacer is not None:
+        return float(replacer(value['text'])) * value['unit']['factor']
+    else:
+        return float(value['text']) * value['unit']['factor']
 
-
+def textToUnitValue(value, unit) -> dict:
+    if unit["factor"] < 1:
+        return {"text": str(round(value/unit["factor"])), "unit": unit}
+    else:
+        return {"text": f"{value:.{3}f}", "unit": unit}
+    
 def textToIdentifier(text: str) -> str:
     if text == "" or text is None:
         return text

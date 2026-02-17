@@ -1,12 +1,16 @@
 import PySide6.QtCore as QtC
 import PySide6.QtWidgets as QtW
+import PySide6.QtGui as QtG
 
 import gui.crate as crate
+import gui.compiler as compiler
+import gui.widgets.Playlist as Playlist
 import gui.widgets.Design as Design
 import gui.widgets.Segment as Segment
 import gui.widgets.SequenceEditor as SequenceEditor
 import gui.widgets.TableSequenceView as TableSequenceView
 import gui.widgets.Viewer as Viewer
+
 
 
 class Widget(QtW.QScrollArea):
@@ -20,16 +24,42 @@ class Widget(QtW.QScrollArea):
         self.rowHeights = {}
         self.setWidgetResizable(True)
         self.setFrameStyle(QtW.QFrame.Shape.NoFrame)
+        
+        self.reallyBigRunButton = QtW.QPushButton("⯈ Run")
+        self.reallyBigRunButton.setObjectName("reallyBigRunButton")
+        self.reallyBigRunButton.clicked.connect(lambda: compiler.compileAndRun(self.name))
+        self.reallyBigStopButton = QtW.QPushButton("🟥 Stop")
+        self.reallyBigStopButton.setObjectName("reallyBigStopButton")
+        self.reallyBigStopButton.clicked.connect(lambda: Playlist.stopRunningSequenceByName(self.name))
+        self.setIsCurrentlyRunning(dock.currentlyRunningSequence == self.name, loading=True)
         self.setWidget(
-            Design.HBox(
-                self.segmentList,
-                Design.VBox(Design.Spacer(), Viewer.InfoButton(crate.sequences[self.name])),
+            Design.VBox(
+                Design.HBox(
+                    self.reallyBigRunButton,
+                    self.reallyBigStopButton,
+                    Design.Spacer(),
+                ),
+                Design.HBox(
+                    self.segmentList,
+                    Design.VBox(Design.Spacer(), Viewer.InfoButton(crate.sequences[self.name])),
+                )
             )
         )
         for segName, segData in crate.sequences[self.name]["segments"].items():
             self.addNewSegment(segName, segData, noAlign=True)
         self.alignPorts()
         self.alignDescriptions()
+
+    def setIsCurrentlyRunning(self, value, loading=False):
+        self.updateReallyBigRunStopButtons(value, loading=loading)
+
+    def updateReallyBigRunStopButtons(self, value, loading=False):
+        bigRunButtonVisible = crate.Config.getDockConfig(SequenceEditor.title, SequenceEditor.enable_big_run_button)
+        bigStopButtonVisible = value and bigRunButtonVisible
+        if not bigRunButtonVisible or not loading:
+            self.reallyBigRunButton.setVisible(bigRunButtonVisible)
+        if not bigStopButtonVisible or not loading:
+            self.reallyBigStopButton.setVisible(bigStopButtonVisible)
 
     def contextMenuEvent(self, e):
         menu = QtW.QMenu()
@@ -107,3 +137,5 @@ class Widget(QtW.QScrollArea):
 
     def getSegment(self, name):
         return self.segmentList.items[name]
+        
+    

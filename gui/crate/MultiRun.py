@@ -15,6 +15,7 @@ DEFAULT_DIMENSION_VALUES = {
     "steps": "10",
 }
 
+
 DEFAULT_VARIABLE_VALUES = {
     "mode": "linear",
     "min": "0",
@@ -28,7 +29,6 @@ def getValue(multirunName, valueName):
     if valueName not in multirun:
         multirun[valueName] = copy.deepcopy(DEFAULT_VALUES[valueName])
     return multirun[valueName]
-
 
 def getDimensionValue(multirunName, dimension, valueName):
     dimensionData = crate.multiruns[multirunName]["dimensions"][dimension]
@@ -173,7 +173,6 @@ class DimensionDelete(Actions.Action):
         if gui.widgets.MultiRun.dock.configWidget.name == action["name"]:
             gui.widgets.MultiRun.dock.configWidget.deleteDimensionWidget(action["index"])
 
-
 class DimensionValueChange(Actions.Action):
     def __init__(self, name, index, valueName, newValue):
         oldValue = crate.multiruns[name]["dimensions"][index][valueName]
@@ -218,6 +217,7 @@ class DimensionValueChange(Actions.Action):
         FileManager.saveMultiRuns()
         if gui.widgets.MultiRun.dock.configWidget.name == action["name"]:
             gui.widgets.MultiRun.dock.configWidget.dimensionWidgets[action["index"]].valueChange(action["valuename"], action["newvalue"])
+
 
 
 class VariableAdd(Actions.Action):

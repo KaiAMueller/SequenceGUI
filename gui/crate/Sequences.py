@@ -15,6 +15,7 @@ DEFAULT_SEQUENCE_VALUES = {
     "pre_compile_args": "",
 }
 
+
 DEFAULT_PORTSTATE_VALUES = {}
 DEFAULT_PORTSTATE_VALUES["artiq.coredevice.ttl"] = {
     "state": True,
@@ -24,7 +25,13 @@ DEFAULT_PORTSTATE_VALUES["artiq.coredevice.zotino"] = {
     "sweep_enable": False,
     "sweep_voltage": {"text": "200", "unit": {"text": "mV", "factor": 1e-3}},
     "formula_enable": False,
+    "formula_name": "Lin | linear",
     "formula_text": "x",
+    "formula_scale_factor": {"scaleX" : 1, "scaleY" : 1, "offsetY" : 0},
+    "loadData_enable": False,
+    "loaded_dataset": {"x": [1, 2, 3], "y": [2, 3, 5], "importDataFileName": "None"},
+    "dataset_unit_time": {"text": "us", "factor": 1e-6},
+    "dataset_unit_voltage": {"text": "mV", "factor": 1e-3},
 }
 DEFAULT_PORTSTATE_VALUES["artiq.coredevice.fastino"] = {}
 DEFAULT_PORTSTATE_VALUES["artiq.coredevice.fastino"].update(copy.deepcopy(DEFAULT_PORTSTATE_VALUES["artiq.coredevice.zotino"]))
@@ -48,8 +55,11 @@ DEFAULT_PORTSTATE_VALUES["artiq.coredevice.ad9910"] = {
     "sweep_duration_enable": False,
     "sweep_duration": {"text": "10", "unit": {"text": "ms", "factor": 1e-3}},
     "ram_phase_formula": "0.0",
+    "ram_phase_formula_name": "None",
     "ram_amplitude_formula": "1.0",
+    "ram_amplitude_formula_name": "None",
     "ram_frequency_formula": "1e6",
+    "ram_frequency_formula_name": "None",
     "ram_profile": "1",
     "ram_start": "0",
     "ram_end": "1023",
@@ -397,8 +407,8 @@ class SegmentValueChange(crate.Actions.Action):
             "valuename": valueName,
             "newvalue": newValue,
             "oldvalue": oldValue,
-            "precrate.Actions": [],
-            "postcrate.Actions": [],
+            "preactions": [],
+            "postactions": [],
         }
         if valueName == "subsequence":
             if sequencesCopy is None:
@@ -407,7 +417,7 @@ class SegmentValueChange(crate.Actions.Action):
             sequencesCopy[seqName]["segments"][segName]["subsequence"] = newValue
             oldDuration = sequencesCopy[seqName]["segments"][segName]["duration"]
             newDuration = SegmentValueChange.getSubsequenceDuration(sequencesCopy, seqName, segName)
-            action["postcrate.Actions"].append(
+            action["postactions"].append(
                 SegmentValueChange.action(
                     seqName,
                     segName,
@@ -424,7 +434,7 @@ class SegmentValueChange(crate.Actions.Action):
             sequencesCopy[seqName]["segments"][segName]["repeats"] = newValue
             oldDuration = sequencesCopy[seqName]["segments"][segName]["duration"]
             newDuration = SegmentValueChange.getSubsequenceDuration(sequencesCopy, seqName, segName)
-            action["postcrate.Actions"].append(
+            action["postactions"].append(
                 SegmentValueChange.action(
                     seqName,
                     segName,
@@ -453,7 +463,7 @@ class SegmentValueChange(crate.Actions.Action):
                             continue
                         oldSeqDuration = sequencesCopy[appearanceSeqName]["segments"][appearanceSegName]["duration"]
                         newSeqDuration = SegmentValueChange.getSubsequenceDuration(sequencesCopy, appearanceSeqName, appearanceSegName)
-                        action["postcrate.Actions"].append(
+                        action["postactions"].append(
                             SegmentValueChange.action(
                                 appearanceSeqName,
                                 appearanceSegName,
@@ -498,7 +508,7 @@ class SegmentValueChange(crate.Actions.Action):
         return f"{gui.widgets.SequenceEditor.title}: Sequence {seqName} Pos {segIndex}: Changed {valueName} from {oldValue} to {newValue}."
 
     def do(action):
-        for preAction in action["precrate.Actions"]:
+        for preAction in action["preactions"]:
             crate.executeAction(preAction)
         crate.sequences[action["seqname"]]["segments"][action["segname"]][action["valuename"]] = action["newvalue"]
         if action["valuename"] == "subsequence":
@@ -512,13 +522,13 @@ class SegmentValueChange(crate.Actions.Action):
         gui.crate.FileManager.saveSequences()
         if gui.widgets.SequenceEditor.dock.configWidget.name == action["seqname"]:
             gui.widgets.SequenceEditor.dock.configWidget.getSegment(action["segname"]).segmentValueChange(action["valuename"], action["newvalue"])
-        for postAction in action["postcrate.Actions"]:
+        for postAction in action["postactions"]:
             crate.executeAction(postAction)
 
     def inverse(action):
         action = copy.deepcopy(action)
         action["newvalue"], action["oldvalue"] = action["oldvalue"], action["newvalue"]
-        crate.Actions.inversePrePostcrate.Actions(action)
+        crate.Actions.inversePrePostActions(action)
         action["description"] = SegmentValueChange.description(
             action["seqname"],
             action["segname"],
@@ -618,8 +628,8 @@ class PortStateValueChange(crate.Actions.Action):
             "valuename": valueName,
             "newvalue": newValue,
             "oldvalue": oldValue,
-            "precrate.Actions": [],
-            "postcrate.Actions": [],
+            "preactions": [],
+            "postactions": [],
         }
         return action
 
@@ -631,19 +641,19 @@ class PortStateValueChange(crate.Actions.Action):
         return f"{gui.widgets.SequenceEditor.title}: Sequence {seqName} Pos {segIndex}: PortState {portName}: Changed {valueName} from {oldValue} to {newValue}"
 
     def do(action):
-        for preaction in action["precrate.Actions"]:
+        for preaction in action["preactions"]:
             crate.executeAction(preaction)
         crate.sequences[action["seqname"]]["segments"][action["segname"]]["ports"][action["portname"]][action["valuename"]] = action["newvalue"]
         gui.crate.FileManager.saveSequences()
         if gui.widgets.SequenceEditor.dock.configWidget.name == action["seqname"]:
             gui.widgets.SequenceEditor.dock.configWidget.getSegment(action["segname"]).getPortState(action["portname"]).valueChange(action["valuename"], action["newvalue"])
-        for postaction in action["postcrate.Actions"]:
+        for postaction in action["postactions"]:
             crate.executeAction(postaction)
 
     def inverse(action):
         action = copy.deepcopy(action)
         action["newvalue"], action["oldvalue"] = action["oldvalue"], action["newvalue"]
-        crate.Actions.inversePrePostcrate.Actions(action)
+        crate.Actions.inversePrePostActions(action)
         action["description"] = PortStateValueChange.description(
             action["seqname"],
             action["segname"],
@@ -744,8 +754,8 @@ class RPCValueChange(crate.Actions.Action):
             "valuename": valueName,
             "newvalue": newValue,
             "oldvalue": oldValue,
-            "precrate.Actions": [],
-            "postcrate.Actions": [],
+            "preactions": [],
+            "postactions": [],
         }
         return action
 
@@ -757,19 +767,19 @@ class RPCValueChange(crate.Actions.Action):
         return f"{gui.widgets.SequenceEditor.title}: Sequence {seqName} Pos {segIndex}: RPC {rpcName}: Changed {valueName} from {oldValue} to {newValue}"
 
     def do(action):
-        for preaction in action["precrate.Actions"]:
+        for preaction in action["preactions"]:
             crate.executeAction(preaction)
         crate.sequences[action["seqname"]]["segments"][action["segname"]]["rpcs"][action["rpcname"]][action["valuename"]] = action["newvalue"]
         gui.crate.FileManager.saveSequences()
         if gui.widgets.SequenceEditor.dock.configWidget.name == action["seqname"]:
             gui.widgets.SequenceEditor.dock.configWidget.getSegment(action["segname"]).getRPC(action["rpcname"]).valueChange(action["valuename"], action["newvalue"])
-        for postaction in action["postcrate.Actions"]:
+        for postaction in action["postactions"]:
             crate.executeAction(postaction)
 
     def inverse(action):
         action = copy.deepcopy(action)
         action["newvalue"], action["oldvalue"] = action["oldvalue"], action["newvalue"]
-        crate.Actions.inversePrePostcrate.Actions(action)
+        crate.Actions.inversePrePostActions(action)
         action["description"] = RPCValueChange.description(
             action["seqname"],
             action["segname"],

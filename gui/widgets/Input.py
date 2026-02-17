@@ -591,7 +591,7 @@ class DatasetEditor(QtW.QPushButton):
         dimensions = self.dimensions if type(self.dimensions) is list else self.dimensions()
         dataset = Dataset.datasetDialog(self.dataset, dimensions)
         if dataset is None or self.dataset == dataset:
-            return
+            return 
         self.set(dataset)
         if self.changedCallback is not None:
             self.changedCallback(dataset)

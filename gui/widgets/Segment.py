@@ -391,6 +391,7 @@ class TriggerWait(Widget):
             itemsGenerateFunction=self.getTTLInputDevices,
             default=crate.Sequences.segmentGet(self.sequence.name, self.name, "input_ttl"),
             changedCallback=lambda value: crate.Sequences.SegmentValueChange(self.sequence.name, self.name, "input_ttl", value),
+            emptySelectionPossible=True,
         )
 
         self.contentWidget.layout().addWidget(

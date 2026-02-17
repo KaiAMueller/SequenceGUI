@@ -39,22 +39,22 @@ DEFAULT_CONFIG_TYPES = {
 
 
 def getModuleName(device):
-    if "module" in crate.device_db[device]:
+    if device in crate.device_db and "module" in crate.device_db[device]:
         module = crate.device_db[device]["module"]
-        if module == "artiq.coredevice.spi2" and "CurrentDriver" in device:
+        if module == "artiq.coredevice.spi2" and ("CurrentDriver" in device or "Mikai" in device):
             return "custom.CurrentDriver"
         return module
     return None
 
 
 def widgetClassFromDevice(device):
-    if "module" in crate.device_db[device]:
+    if device in crate.device_db and "module" in crate.device_db[device]:
         if crate.device_db[device]["module"] in DEFAULT_CONFIG_TYPES:
             config = DEFAULT_CONFIG_TYPES[crate.device_db[device]["module"]]
             return config
         else:
             if crate.device_db[device]["module"] == "artiq.coredevice.spi2":
-                if "CurrentDriver" in device:
+                if "CurrentDriver" in device or "Mikai" in device:
                     return CurrentDriver.Config
     return None
 
@@ -79,7 +79,7 @@ def getDevices(portData=None):
             continue
         if (crate.device_db[device]["module"] not in hasMultipleChannelsModule and device in loadedDevices) or selfitem == device:
             continue
-        if crate.device_db[device]["module"] == "artiq.coredevice.spi2" and "CurrentDriver" not in device:
+        if crate.device_db[device]["module"] == "artiq.coredevice.spi2" and "CurrentDriver" not in device and "Mikai" not in device:
             continue
         devices.append(device)
     # remove switches and other ttl stuff for other devices

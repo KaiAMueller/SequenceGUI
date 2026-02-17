@@ -10,7 +10,7 @@ def getFastinoStepCount(duration, parallel_channels=1):
 
 
 def getCurrentDriverStepCount(duration):
-    return max(2, min(1024, int(duration / 128e-6)))
+    return max(2, min(1024, int(duration / 2e-6)))
 
 
 def formulaTextToDataPoints(dataLength, formula_text):
@@ -37,6 +37,14 @@ def scaleFormulaData(dataX, dataY, duration, voltage, sweep_voltage):
         dataY_.append(dataY[i] * scale + offset)
     return dataX_, dataY_
 
+def formulaScaleFactor(dataX, dataY, duration, voltage, sweep_voltage):
+    assert duration is not None
+    scaleX = duration
+    minVal = min(dataY)
+    maxVal = max(dataY)
+    scaleY = (sweep_voltage - voltage) / (maxVal - minVal)
+    offsetY = voltage - minVal * scaleX
+    return {"scaleX" : scaleX, "scaleY" : scaleY, "offsetY" : offsetY}
 
 def interpolateFormulaDataToPrevious(dataX, dataY):
     dataX_ = []
