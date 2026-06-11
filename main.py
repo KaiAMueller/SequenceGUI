@@ -31,11 +31,19 @@ import gui.widgets.Design as Design
 
 
 def main():
+    if sys.platform == "win32":
+        selector_policy = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
+        if selector_policy is not None:
+            asyncio.set_event_loop_policy(selector_policy())
+
     app = QtW.QApplication(sys.argv)
 
     eventLoop = qasync.QEventLoop(app)
     asyncio.set_event_loop(eventLoop)
-    atexit.register(eventLoop.close)
+    # On some Windows/qasync combinations, loop.close() can hang (especially after UDP).
+    # Avoid registering close on Windows; let the interpreter exit naturally.
+    if sys.platform != "win32":
+        atexit.register(eventLoop.close)
     launcher_exit_event = asyncio.Event()
     start_gui_event = asyncio.Event()
 

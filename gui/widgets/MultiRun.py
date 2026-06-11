@@ -313,13 +313,13 @@ class Variable(Design.HBox):
         )
         self.minField = Input.TextField(
             default=crate.MultiRun.getVariableValue(self.multirun, self.dimension, self.name, "min"),
-            reader=float,
+            reader=eval,
             changedCallback=lambda value: crate.MultiRun.VariableValueChange(self.multirun, self.dimension, self.name, "min", value),
             dontUpdateMetrics=True,
         )
         self.maxField = Input.TextField(
             default=crate.MultiRun.getVariableValue(self.multirun, self.dimension, self.name, "max"),
-            reader=float,
+            reader=eval,
             changedCallback=lambda value: crate.MultiRun.VariableValueChange(self.multirun, self.dimension, self.name, "max", value),
             dontUpdateMetrics=True,
         )

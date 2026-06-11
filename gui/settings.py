@@ -194,6 +194,8 @@ def setDarkmode(darkmode):
 
 def setCratePath(path):
     data["cratePath"] = path
+    if len(path) > 0 and not path.endswith("/"):
+        data["cratePath"] += "/"
     saveSettings()
 
 def setDefaultCratesDir(path):
@@ -286,7 +288,7 @@ class Dialog(Design.DialogDesign):
                 {"text": "kS", "factor": 1e3},
                 {"text": "MS", "factor": 1e6},
             ],
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=self.FastinoMaxSamplingRateChanged,
             dontUpdateMetrics=False,
@@ -300,7 +302,7 @@ class Dialog(Design.DialogDesign):
                 {"text": "us", "factor": 1e-6},
                 {"text": "ns", "factor": 1e-9},
             ],
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=self.FastinoDelayChannelsChanged,
             dontUpdateMetrics=False,

@@ -54,7 +54,7 @@ class Widget(Design.Frame):
                 {"text": "us", "factor": 1e-6},
                 {"text": "ns", "factor": 1e-9},
             ],
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=lambda value: crate.Sequences.SegmentValueChange(self.sequence.name, self.name, "duration", value),
             dontUpdateMetrics=False,
@@ -358,7 +358,7 @@ class Subsequence(Widget):
 
         self.configWidgets["repeats"] = Input.TextField(
             default=crate.Sequences.segmentGet(self.sequence.name, self.name, "repeats"),
-            reader=int,
+            reader=lambda x: int(eval(x)),
             replacer=Variables.replacer,
             changedCallback=lambda value: crate.Sequences.SegmentValueChange(self.sequence.name, self.name, "repeats", value),
         )

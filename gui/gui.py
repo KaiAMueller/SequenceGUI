@@ -22,6 +22,7 @@ import gui.widgets.LabSetup as LabSetup
 import gui.widgets.Log as Log
 import gui.widgets.MultiRun as MultiRun
 import gui.widgets.Playlist as Playlist
+from gui.widgets.Stabilizer.Stabilizer import StabilizerDock
 import gui.widgets.RPC as RPC
 import gui.widgets.SequenceEditor as SequenceEditor
 import gui.widgets.TableSequenceView as TableSequenceView
@@ -94,6 +95,12 @@ DOCKS = {
         "class": Playlist.Dock,
         "area": QtC.Qt.DockWidgetArea.BottomDockWidgetArea,
         "needLoad": False,
+    },
+    "Stabilizer": {
+        "class": StabilizerDock,
+        "area": QtC.Qt.DockWidgetArea.BottomDockWidgetArea,
+        "needLoad": False,
+        "defaultHidden": True,
     },
 }
 
@@ -224,6 +231,13 @@ class Gui:
         dock.setObjectName(dockName)
         tab.addDockWidget(DOCKS[dockName]["area"], dock)
         self.docks[dockName] = dock
+
+        # Optional docks should not be visible by default, but should appear in the View menu.
+        try:
+            if DOCKS.get(dockName, {}).get("defaultHidden", False):
+                dock.hide()
+        except Exception:
+            pass
 
     def loadCrate(self):
         crate.loadDone = False

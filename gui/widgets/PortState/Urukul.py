@@ -87,7 +87,7 @@ Always check the output signal before using it in an experiment."""
         self.configWidgets["amp_label"] = QtW.QLabel("Amplitude (0-1.0)")
         self.configWidgets["amp"] = Input.TextField(
             default=self.getValue("amp"),
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("amp"),
         )
@@ -96,7 +96,7 @@ Always check the output signal before using it in an experiment."""
         self.configWidgets["phase_label"] = QtW.QLabel("Phase (0-1.0)")
         self.configWidgets["phase"] = Input.TextField(
             default=self.getValue("phase"),
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("phase"),
         )
@@ -117,7 +117,7 @@ Always check the output signal before using it in an experiment."""
         self.configWidgets["sweep_amp_label"] = QtW.QLabel("Sweep Amplitude")
         self.configWidgets["sweep_amp"] = Input.TextField(
             default=self.getValue("sweep_amp"),
-            reader=float,
+            reader=eval,
             replacer=Variables.replacer,
             changedCallback=self.getChangedCallback("sweep_amp"),
         )
@@ -200,7 +200,8 @@ Always check the output signal before using it in an experiment."""
         self.configWidgets["ram_step_size_label"] = QtW.QLabel("RAM Step Size")
         self.configWidgets["ram_step_size"] = Input.TextField(
             default=self.getValue("ram_step_size"),
-            reader=int,
+            replacer=Variables.replacer,
+            reader=lambda x: int(eval(x)),
             changedCallback=self.getChangedCallback("ram_step_size"),
         )
         self.configWidgets["ram_duration_preview_label"] = QtW.QLabel("")

@@ -326,12 +326,12 @@ class ConfigDialog(PortState.ConfigDialog):
             duration = self.getSegmentDuration()
             voltage = Input.getValueFromState(
                 self.portStateWidget.getValue("voltage"),
-                reader=float,
+                reader=eval,
                 replacer=Variables.replacer,
             )
             sweep_voltage = Input.getValueFromState(
                 self.portStateWidget.getValue("sweep_voltage"),
-                reader=float,
+                reader=eval,
                 replacer=Variables.replacer,
             )
             formula_text = Input.getValueFromState(
@@ -349,4 +349,4 @@ class ConfigDialog(PortState.ConfigDialog):
 
     def getSegmentDuration(self):
         segment = crate.sequences[self.portStateWidget.segment.sequence.name]["segments"][self.portStateWidget.segment.name]
-        return Input.getValueFromState(segment["duration"], reader=float, replacer=Variables.replacer)
+        return Input.getValueFromState(segment["duration"], reader=eval, replacer=Variables.replacer)

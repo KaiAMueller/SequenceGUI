@@ -481,9 +481,9 @@ class SegmentValueChange(crate.Actions.Action):
         newDuration = 0
         if subsequence in d:
             for segData in d[subsequence]["segments"].values():
-                newDuration += Input.getValueFromState(segData["duration"], reader=float, replacer=Variables.replacer)
+                newDuration += Input.getValueFromState(segData["duration"], reader=eval, replacer=Variables.replacer)
             repeats = d[seqName]["segments"][segName]["repeats"]
-            repeatsValue = Input.getValueFromState(repeats, reader=float, replacer=Variables.replacer)
+            repeatsValue = Input.getValueFromState(repeats, reader=eval, replacer=Variables.replacer)
             newDuration *= repeatsValue
         if newDuration > 1:
             return {"text": str(newDuration), "unit": {"text": "s", "factor": 1}}

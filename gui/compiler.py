@@ -1,6 +1,7 @@
 import copy
 import os
 from datetime import datetime, timedelta
+from typing import Optional
 
 try:
     import sipyco.pc_rpc as rpc
@@ -22,6 +23,172 @@ import gui.widgets.Playlist as Playlist
 import gui.widgets.RPC as RPC
 import gui.widgets.Variables as Variables
 from gui.widgets.Log import log
+
+
+def _scheduler_target_name() -> str:
+    return "master_schedule" if int(crate.Config.get("artiqVersion")) <= 7 else "schedule"
+
+
+def submit_expid(
+    expid: dict,
+    *,
+    pipeline_name: str = "main",
+    priority: int = 0,
+    due_date=None,
+    flush: bool = False,
+    host: str = "127.0.0.1",
+    port=None,
+):
+    """Submit an experiment to the ARTIQ scheduler (artiq_master).
+
+    This is the reusable part of compileAndRun: given an `expid` dict, it will
+    connect to the scheduler and call `submit`.
+    """
+
+    if port is None:
+        port = crate.Config.get("port-control")
+
+    target = _scheduler_target_name()
+    scheduler = None
+    try:
+        scheduler = rpc.Client(host, port, target)
+        scheduler.submit(
+            pipeline_name=pipeline_name,
+            expid=expid,
+            priority=priority,
+            due_date=due_date,
+            flush=flush,
+        )
+    finally:
+        try:
+            if scheduler is not None:
+                scheduler.close_rpc()
+        except Exception:
+            pass
+
+
+def submit_experiment_file(
+    *,
+    file: str,
+    class_name: str,
+    arguments: Optional[dict] = None,
+    duration: Optional[float] = None,
+    log_level: int = 30,
+    repo_rev: str = "N/A",
+    pipeline_name: str = "main",
+    priority: int = 0,
+    due_date=None,
+    flush: bool = False,
+):
+    """Convenience wrapper to submit an experiment given file + class name."""
+
+    expid = {
+        "class_name": class_name,
+        "file": file,
+        "arguments": arguments or {},
+        "log_level": log_level,
+        "repo_rev": repo_rev,
+    }
+    if duration is not None:
+        expid["duration"] = duration
+    submit_expid(
+        expid,
+        pipeline_name=pipeline_name,
+        priority=priority,
+        due_date=due_date,
+        flush=flush,
+    )
+
+
+def _generated_code_folder_path(*, now: Optional[datetime] = None) -> str:
+    if now is None:
+        now = datetime.now()
+    return (
+        crate.FileManager.cratePath
+        + "generatedCode/"
+        + now.strftime("%Y-%m-%d")
+        + "/"
+        + now.strftime("%H")
+        + "/"
+    )
+
+
+def _artiq_master_code_path_from_windows(code_file_path: str) -> str:
+    # Keep behavior identical to compileAndRun().
+    if settings.data.get("artiqMasterInWsl"):
+        # translating windows path to wsl path
+        return "/mnt/" + code_file_path[0].lower() + code_file_path[2:]
+    return code_file_path
+
+
+def write_generated_code_file(
+    code: str,
+    *,
+    filename_prefix: str = "",
+    code_id: Optional[int] = None,
+    now: Optional[datetime] = None,
+):
+    """Write code into the generatedCode folder and return paths.
+
+    Returns: (code_id, windows_path, artiq_master_visible_path)
+    """
+
+    if now is None:
+        now = datetime.now()
+    if code_id is None:
+        code_id = int(now.strftime("%Y%m%d%H%M%S%f"))
+
+    generated_code_folder = _generated_code_folder_path(now=now)
+    if not os.path.exists(generated_code_folder):
+        os.makedirs(generated_code_folder)
+
+    windows_path = generated_code_folder + f"{filename_prefix}{code_id}.py"
+    while os.path.exists(windows_path):
+        code_id += 1
+        windows_path = generated_code_folder + f"{filename_prefix}{code_id}.py"
+
+    with open(windows_path, "w", encoding="utf-8") as f:
+        f.write(code)
+
+    artiq_master_path = _artiq_master_code_path_from_windows(windows_path)
+    return code_id, windows_path, artiq_master_path
+
+
+def submit_generated_code(
+    *,
+    code: str,
+    codeID: int,
+    class_name: str,
+    arguments: Optional[dict] = None,
+    duration: Optional[float] = None,
+    filename_prefix: str = "",
+    pipeline_name: str = "main",
+    priority: int = 0,
+    due_date=None,
+    flush: bool = False,
+):
+    """Write a Python experiment to generatedCode/ and submit it to ARTIQ."""
+
+    _code_id, _windows_path, artiq_master_path = write_generated_code_file(
+        code,
+        filename_prefix=filename_prefix,
+        code_id=codeID,
+    )
+
+    submitted_args = (arguments or {}).copy()
+    # Many parts of the GUI assume a codeID exists in expid.arguments.
+    submitted_args["codeID"] = _code_id
+    submit_experiment_file(
+        file=artiq_master_path,
+        class_name=class_name,
+        arguments=submitted_args,
+        duration=duration,
+        pipeline_name=pipeline_name,
+        priority=priority,
+        due_date=due_date,
+        flush=flush,
+    )
+    return _code_id
 
 
 class TimeRunner:
@@ -83,40 +250,25 @@ def compileAndRun(seqName):
             return None
 
     try:
-        generatedCodeFolderPath = crate.FileManager.cratePath + "generatedCode/" + datetime.now().strftime("%Y-%m-%d") + "/" + datetime.now().strftime("%H") + "/"
-        if not os.path.exists(generatedCodeFolderPath):
-            os.makedirs(generatedCodeFolderPath)
-        codeFilePath = generatedCodeFolderPath + f"{codeID}.py"
-        while os.path.exists(codeFilePath):
-            codeID = codeID + 1
-            codeFilePath = generatedCodeFolderPath + f"{codeID}.py"
-
-        file = open(codeFilePath, "w")
-        file.write(compiledCode)
-        file.close()
-
-        if settings.data["artiqMasterInWsl"]:
-            # translating windows path to wsl path
-            artiq_master_to_code_path = "/mnt/" + codeFilePath[0].lower() + codeFilePath[2:]
-        else:
-            artiq_master_to_code_path = codeFilePath
+        codeID, _code_file_path, artiq_master_to_code_path = write_generated_code_file(
+            compiledCode,
+            code_id=codeID,
+        )
     except Exception as e:
         log("Error when compiling sequence: ")
         log(e)
         return
     try:
-        expid = {
-            "class_name": util.textToIdentifier(seqName),
-            "file": artiq_master_to_code_path,
-            "arguments": {"codeID": codeID},
-            "log_level": 30,
-            "repo_rev": "N/A",
-            "duration": duration,
-        }
-        target = "master_schedule" if int(crate.Config.get("artiqVersion")) <= 7 else "schedule"
-        scheduler = rpc.Client("127.0.0.1", crate.Config.get("port-control"), target)
-        scheduler.submit(pipeline_name="main", expid=expid, priority=0, due_date=None, flush=False)
-        scheduler.close_rpc()
+        submit_experiment_file(
+            file=artiq_master_to_code_path,
+            class_name=util.textToIdentifier(seqName),
+            arguments={"codeID": codeID},
+            duration=duration,
+            pipeline_name="main",
+            priority=0,
+            due_date=None,
+            flush=False,
+        )
     except ConnectionRefusedError as e:
         log(e)
     log(f"Sequence {seqName} submitted")
@@ -153,11 +305,11 @@ def getDurationValue(seqName, seqStack=None):
 
 
 def getSegmentDurationValue(segment):
-    return Input.getValueFromState(segment["duration"], reader=float, replacer=Variables.replacer)
+    return Input.getValueFromState(segment["duration"], reader=eval, replacer=Variables.replacer)
 
 
 def getSubsequenceRepeatsValue(segment):
-    return Input.getValueFromState(segment["repeats"], reader=int, replacer=Variables.replacer)
+    return Input.getValueFromState(segment["repeats"], reader=lambda x: int(eval(x)), replacer=Variables.replacer)
 
 
 def getSubsequenceDurationValue(segment, seqStack=None):
@@ -304,34 +456,38 @@ def compileDAC(portName, portState):
 
 def compileSampler(portName, portState):
     return {
-        "freq": Input.getValueFromState(portState["freq"], reader=float, replacer=Variables.replacer),
+        "freq": Input.getValueFromState(portState["freq"], reader=eval, replacer=Variables.replacer),
     }
 
 
 def compileUrukul(portName, portState):
     compiledPortState = {}
     compiledPortState["switch"] = portState["switch"] if portState["switch_enable"] else None
-    compiledPortState["attenuation"] = Input.getValueFromState(portState["attenuation"], reader=float, replacer=Variables.replacer) if portState["attenuation_enable"] else None
+    compiledPortState["attenuation"] = Input.getValueFromState(portState["attenuation"], reader=eval, replacer=Variables.replacer) if portState["attenuation_enable"] else None
     compiledPortState["mode"] = "normal"
     if portState["mode_enable"]:
-        compiledPortState["amp"] = Input.getValueFromState(portState["amp"], reader=float, replacer=Variables.replacer)
-        compiledPortState["freq"] = Input.getValueFromState(portState["freq"], reader=float, replacer=Variables.replacer)
-        compiledPortState["phase"] = Input.getValueFromState(portState["phase"], reader=float, replacer=Variables.replacer)
+
+        compiledPortState["amp"] = Input.getValueFromState(portState["amp"], reader=eval, replacer=Variables.replacer)
+        compiledPortState["freq"] = Input.getValueFromState(portState["freq"], reader=eval, replacer=Variables.replacer)
+        compiledPortState["phase"] = Input.getValueFromState(portState["phase"], reader=eval, replacer=Variables.replacer)
+
         if portState["mode"] == "Sweep frequency":
             compiledPortState["mode"] = "sweep_freq"
-            compiledPortState["sweep_freq"] = Input.getValueFromState(portState["sweep_freq"], reader=float, replacer=Variables.replacer)
-            compiledPortState["sweep_duration"] = Input.getValueFromState(portState["sweep_duration"], reader=float, replacer=Variables.replacer) if portState["sweep_duration_enable"] else None
+            compiledPortState["sweep_freq"] = Input.getValueFromState(portState["sweep_freq"], reader=eval, replacer=Variables.replacer)
+            compiledPortState["sweep_duration"] = Input.getValueFromState(portState["sweep_duration"], reader=eval, replacer=Variables.replacer) if portState["sweep_duration_enable"] else None
         if portState["mode"] == "Sweep amplitude":
             compiledPortState["mode"] = "sweep_amp"
-            compiledPortState["sweep_amp"] = Input.getValueFromState(portState["sweep_amp"], reader=float, replacer=Variables.replacer)
-            compiledPortState["sweep_duration"] = Input.getValueFromState(portState["sweep_duration"], reader=float, replacer=Variables.replacer) if portState["sweep_duration_enable"] else None 
+            compiledPortState["sweep_amp"] = Input.getValueFromState(portState["sweep_amp"], reader=eval, replacer=Variables.replacer)
+            compiledPortState["sweep_duration"] = Input.getValueFromState(portState["sweep_duration"], reader=eval, replacer=Variables.replacer) if portState["sweep_duration_enable"] else None 
 
         if portState["mode"] == "Write RAM Profile":
             compiledPortState["mode"] = "ram_write"
             compiledPortState["ram_profile"] = portState["ram_profile"]
             compiledPortState["ram_start"] = portState["ram_start"]
             compiledPortState["ram_end"] = portState["ram_end"]
-            compiledPortState["ram_step_size"] = portState["ram_step_size"]
+
+            compiledPortState["ram_step_size"] = Input.getValueFromState(portState["ram_step_size"], reader=lambda x: int(eval(x)), replacer=Variables.replacer)
+
             compiledPortState["ram_phase_formula"] = Formula.translateFormulaToNumpy(Variables.replacer(portState["ram_phase_formula"]))
             compiledPortState["ram_amplitude_formula"] = Formula.translateFormulaToNumpy(Variables.replacer(portState["ram_amplitude_formula"]))
             compiledPortState["ram_frequency_formula"] = Formula.translateFormulaToNumpy(Variables.replacer(portState["ram_frequency_formula"]))
@@ -345,11 +501,11 @@ def compileUrukul(portName, portState):
 
 def compileMirny(portName, portState):
     compiledPortState = {}
-    compiledPortState["freq"] = Input.getValueFromState(portState["freq"], reader=float, replacer=Variables.replacer) if portState["freq_enable"] else None
-    compiledPortState["attenuation"] = Input.getValueFromState(portState["attenuation"], reader=float, replacer=Variables.replacer) if portState["attenuation_enable"] else None
+    compiledPortState["freq"] = Input.getValueFromState(portState["freq"], reader=eval, replacer=Variables.replacer) if portState["freq_enable"] else None
+    compiledPortState["attenuation"] = Input.getValueFromState(portState["attenuation"], reader=eval, replacer=Variables.replacer) if portState["attenuation_enable"] else None
     compiledPortState["switch"] = portState["switch"] if portState["switch_enable"] else None
     compiledPortState["skipInit"] = portState["skipInit"] if "skipInit" in portState else False
-    compiledPortState["useAlmazny"] = portState["useAlmazny"] if "useAlmazny" in portState else False
+    compiledPortState["useAlmazny"] = (portState["useAlmazny"] if "useAlmazny" in portState else False) and crate.labsetup[portName]["hasAlmazny"]
     return compiledPortState
 
 

@@ -202,7 +202,7 @@ class Dock(gui.widgets.Dock.Dock):
                         if segData["subsequence"] is None or segData["subsequence"] == "" or "inf" in segData["duration"]["text"]:
                             self.tableWidget.setItem(0, 0, TableWidgetItem("Sequence contains infinite loop"))
                             return
-                        repeats = Input.getValueFromState(segData["repeats"], reader=int, replacer=Variables.replacer)
+                        repeats = Input.getValueFromState(segData["repeats"], reader=lambda x: int(eval(x)), replacer=Variables.replacer)
                         if repeats is not None:
                             for j in range(repeats):
                                 expansion = [

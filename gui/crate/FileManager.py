@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 import time
 from threading import Thread
 from datetime import datetime
@@ -57,28 +58,50 @@ def generateMissingFilesInPath(path):
             file.write(device_db_data)
 
 
+def _load_json_with_fallback(file_path, encoding="utf-8"):
+    candidates = [
+        (file_path, ""),
+        (file_path + ".bak", f"⚠ {os.path.basename(file_path)} unreadable; loaded .bak\n"),
+        (file_path + ".tmp", f"⚠ {os.path.basename(file_path)} unreadable; loaded .tmp\n"),
+    ]
+
+    last_exc = None
+    for p, warn in candidates:
+        try:
+            with open(p, "r", encoding=encoding) as f:
+                return json.load(f), warn
+        except Exception as e:
+            last_exc = e
+
+    raise last_exc
+
+
 def load(newCratePath=None):
     if newCratePath is None:
         newCratePath = settings.getCratePath()
+
     success = True
     return_message = ""
     loadedData = {}
     newDeviceDb = None
+
     for fileName in FILES.keys():
+        filePath = _join(newCratePath, fileName)
         try:
-            file = open(newCratePath + fileName, "r")
-            loadedData[fileName] = json.load(file)
+            data, warn = _load_json_with_fallback(filePath)
+            loadedData[fileName] = data
+            if warn:
+                return_message += warn
         except OSError:
             success = False
-            return_message += f"⚠ no {fileName} file found\n"
+            return_message += f"⚠ no readable {fileName} (or backup) found\n"
 
     try:
-        newDeviceDb = open(newCratePath + "/device_db.py").read()
+        newDeviceDb = open(_join(newCratePath, "device_db.py"), "r", encoding="utf-8").read()
     except OSError:
         success = False
         return_message += "⚠ no device_db.py file found\n"
 
-    # only if sequences, labsetup, config and device_db all found
     if success:
         global cratePath
         cratePath = newCratePath
@@ -87,6 +110,7 @@ def load(newCratePath=None):
             setattr(crate, fileInfo["crate_attr"], loadedData[fileName])
         complementConfigData()
         crate.loadDeviceDbVariables(newDeviceDb)
+
     return success, return_message
 
 
@@ -139,17 +163,51 @@ def save():
     settings.saveSettings()
 
 
+def _join(*parts):
+    return "/".join(p.strip("/\\") for p in parts if p not in (None, ""))
+
+def _fsync_dir(dir_path):
+    try:
+        fd = os.open(dir_path, os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except Exception:
+        pass
+
+def _atomic_write_json(file_path, obj, indent=4, encoding="utf-8", keep_bak=True):
+    data = json.dumps(obj, indent=indent)
+
+    tmp_path = file_path + ".tmp"
+    bak_path = file_path + ".bak"
+
+    dir_path = os.path.dirname(file_path) or "."
+    os.makedirs(dir_path, exist_ok=True)
+
+    with open(tmp_path, "w", encoding=encoding, newline="\n") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+
+    if keep_bak and os.path.exists(file_path):
+        try:
+            os.replace(file_path, bak_path)
+        except OSError:
+            pass
+    os.replace(tmp_path, file_path)
+    _fsync_dir(dir_path)
+
 def saveCrateData(fileName):
     fileInfo = FILES[fileName]
-    filePath = cratePath + fileName
+    filePath = _join(cratePath, fileName)
     try:
-        data = json.dumps(getattr(crate, fileInfo["crate_attr"]), indent=4)
-        file = open(filePath, "w")
-        file.write(data)
-        file.close()
-    except OSError as e:
+        obj = getattr(crate, fileInfo["crate_attr"])
+        _atomic_write_json(filePath, obj, indent=4, keep_bak=True)
+    except (OSError, TypeError, ValueError) as e:
         log(e)
         log(f"Error: saving {fileInfo['crate_attr']} to {filePath} failed")
+
 
 def saveSequenceData(seqName, RID=''):
     try:

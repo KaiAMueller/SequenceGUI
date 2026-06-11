@@ -207,7 +207,7 @@ class UnitValueField(RedOutlineWidget, Design.Frame):
         self,
         default,
         allowedUnits,
-        reader=float,
+        reader=eval,
         replacer=None,
         changedCallback=None,
         dontUpdateMetrics=False,
@@ -313,7 +313,7 @@ class UnitValueField(RedOutlineWidget, Design.Frame):
         return self.lineEdit.text() + " " + self.cycler.text()
 
 
-def getValueFromState(state, reader=float, replacer=None):
+def getValueFromState(state, reader=eval, replacer=None):
     if state is None:
         return None
     try:

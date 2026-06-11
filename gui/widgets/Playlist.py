@@ -30,25 +30,17 @@ dock = None
 
 def sequenceCompiled(codeID, seqName, variables):
     dock.runObserver.addRunInfo(str(codeID), seqName, variables)
-    
+    if Config.getDockConfig(Git.title, Git.auto_commit_on_run):
+        Git.dock.commitOnRun()
     
 def sequenceStarted(codeID):
     dock.dataReader.updateStatusByCodeID(str(codeID), "running")
     dock.runObserver.currentRun = str(codeID)
 
-
 def sequenceFinished(codeID):
     dock.dataReader.updateStatusByCodeID(str(codeID), "done")
     dock.runObserver.removeRunInfo(str(codeID))
     
-    if Config.getDockConfig(Git.title, Git.auto_commit_on_run):
-        Git.dock.commitOnRun()
-
-
-            
-    
-    
-
 def stopRunningSequenceByName(seqName):
     rid = dock.dataReader.currentlyRunningRID
     if dock.dataReader.treeItems[rid].seqName == seqName:
@@ -116,13 +108,15 @@ class RunObserver:
 
 class TreeItem(QtW.QTreeWidgetItem):
     def __init__(self, seqName: str, status: str, rid: str, codeID: str, duration: str, previousRID):
-        super(TreeItem, self).__init__([seqName, status, rid, duration])
+        super(TreeItem, self).__init__([seqName, status, rid, duration,"",""])
         self.seqName = seqName
         self.status = status
         self.duration = duration
         self.rid = rid
         self.codeID = codeID
         self.previousRID = previousRID
+
+        self.startTime = None
         self.finishedDate = None
         self.updateStatus(status)
 
@@ -135,32 +129,45 @@ class TreeItem(QtW.QTreeWidgetItem):
             color = QtG.QColor(0, 0, 0, 0)
         # set row background
         self.setBackground(1, color)
-        if status == "done":
+
+
+        if status == "pending":
+            self.startTime = ""
+            self.setText(3, self.startTime)
+        elif status == "preparing":
+            self.startTime = datetime.datetime.now()
+            self.setText(3, self.startTime.strftime("%H:%M:%S"))
+        elif status == "done":
             self.finishedDate = datetime.datetime.now()
-        if status == "error":
+        elif status == "error":
             self.finishedDate = datetime.datetime.now()
+        
         for key, value in dock.dataReader.codeIDdict.items():
             value.updateTime()
         self.updateTime()
 
     def updateTime(self):
-        self.setText(3, self.getDueDate().strftime("%H:%M:%S"))
+        self.setText(4, self.getDueDate().strftime("%H:%M:%S"))
     
     def getDueDate(self):
         if self.finishedDate is not None:
             return self.finishedDate
+        try:
+            duration_seconds = float(self.duration)
+        except Exception:
+            duration_seconds = 0.0
         if self.previousRID is None:
-            return datetime.datetime.now() + datetime.timedelta(seconds=float(self.duration) + 1) #+1 as a scheduling overhead estimation
+            return datetime.datetime.now() + datetime.timedelta(seconds=duration_seconds + 1) #+1 as a scheduling overhead estimation
         if self.previousRID not in dock.dataReader.treeItems:
-            return datetime.datetime.now() + datetime.timedelta(seconds=float(self.duration) + 1)
-        return dock.dataReader.treeItems[self.previousRID].getDueDate() + datetime.timedelta(seconds=float(self.duration) + 1)
+            return datetime.datetime.now() + datetime.timedelta(seconds=duration_seconds + 1)
+        return dock.dataReader.treeItems[self.previousRID].getDueDate() + datetime.timedelta(seconds=duration_seconds + 1)
 
 
 class Tree(QtW.QTreeWidget):
     def __init__(self):
         super(Tree, self).__init__()
-        self.setColumnCount(2)
-        self.setHeaderLabels(["Sequence", "Status", "RID", "Expected end time"])
+        self.setColumnCount(5)
+        self.setHeaderLabels(["Sequence", "Status", "RID", "Start time", "Expected end time"])
         self.setSelectionMode(QtW.QAbstractItemView.SelectionMode.NoSelection)
 
     def contextMenuEvent(self, event):
@@ -185,7 +192,7 @@ class DataReader:
         self.lastRID = None
 
     def read(self, updateData):
-        # log(updateData)
+        # print(updateData)
         action = updateData["action"]
         if action == "setitem":
             self.setitem(updateData["path"], updateData["key"], updateData["value"])
@@ -194,14 +201,38 @@ class DataReader:
 
     def setitem(self, path: list, key: str, value: str):
         if path == []:
-            codeID = str(value["expid"]["arguments"]["codeID"])
-            seqName = dock.runObserver.runs[codeID]["seqName"]
+            expid = value.get("expid", {}) if isinstance(value, dict) else {}
+            arguments = expid.get("arguments", {}) if isinstance(expid, dict) else {}
+            codeID_val = None
+            if isinstance(arguments, dict):
+                codeID_val = arguments.get("codeID")
+
+            codeID = "" if codeID_val is None else str(codeID_val)
+
+            seqName = None
+            if codeID and codeID in dock.runObserver.runs:
+                seqName = dock.runObserver.runs[codeID].get("seqName")
+            if not seqName:
+                # Fallback for experiments not launched via the SequenceGUI.
+                if isinstance(expid, dict):
+                    seqName = expid.get("class_name") or expid.get("file")
+            if not seqName:
+                seqName = "Experiment"
+
+            duration = "0"
+            if isinstance(expid, dict) and "duration" in expid:
+                try:
+                    duration = str(expid["duration"])
+                except Exception:
+                    duration = "0"
+
             self.newItem(
                 str(key),
-                seqName,
-                value["status"],
+                str(seqName),
+                value.get("status", "") if isinstance(value, dict) else "",
                 codeID,
-                str(value["expid"]["duration"]),
+                duration,
+                launched_by_sequencegui=bool(codeID and codeID in dock.runObserver.runs),
             )
         else:
             rid = str(path[0])
@@ -215,13 +246,18 @@ class DataReader:
                             SequenceEditor.sequenceFinished(self.treeItems[rid].seqName)
                         self.treeItems[rid].updateStatus(value)
 
-    def newItem(self, rid, seqName, status, codeID, duration):
+    def newItem(self, rid, seqName, status, codeID, duration, launched_by_sequencegui: bool = True):
         self.treeItems[rid] = TreeItem(seqName, status, rid, codeID, duration, self.lastRID)
         self.lastRID = rid
-        self.codeIDdict[codeID] = self.treeItems[rid]
+        if codeID:
+            self.codeIDdict[codeID] = self.treeItems[rid]
         self.tree.addTopLevelItem(self.treeItems[rid])
         self.tree.scrollToBottom()
-        FileManager.saveSequenceData(seqName, dock.dataReader.codeIDdict[codeID].rid)
+        if launched_by_sequencegui and codeID:
+            try:
+                FileManager.saveSequenceData(seqName, dock.dataReader.codeIDdict[codeID].rid)
+            except Exception:
+                pass
 
     def deleteItem(self, rid):
         if rid in self.treeItems:

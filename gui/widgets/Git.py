@@ -16,6 +16,8 @@ import gui.util as util
 import gui.widgets.Design as Design
 import gui.widgets.Dock
 from gui.widgets.Log import log
+import gui.widgets.Playlist as playlist
+
 
 dock = None
 
@@ -187,8 +189,14 @@ class Dock(gui.widgets.Dock.Dock):
 
     def commitOnRun(self):
 
-        date_string = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.commit("auto commit on run at " + date_string)
+        runs = playlist.dock.runObserver.runs
+        if runs:
+            last_codeID = list(runs.keys())[-1]
+            seqName=runs[last_codeID]["seqName"]
+        self.commit("Auto commit before the run of the sequence " + seqName)
+        
+        
+
 
         if crate.Config.getDockConfig(title, auto_push_on_commit):
             # push changes
@@ -305,6 +313,7 @@ class Dock(gui.widgets.Dock.Dock):
         # check if branch already active
         if branch.name == self.getActiveBranchName():
             return
+        
 
         if not new:
             confirmationMessage = f"Checkout branch {branch.name}?"
@@ -350,11 +359,14 @@ class Dock(gui.widgets.Dock.Dock):
         self.updateBranchButtonText()
 
     def loadCheckout(self, checkoutTarget):
+
         # save current crate
         crate.FileManager.save()
 
         # check for untracked changes
-        if self.repo.is_dirty():
+        #if self.repo.is_dirty(untracked_files=True):
+        if self.repo.git.diff(checkoutTarget, "--name-only"):
+            
             if not Design.confirmationDialog(
                 "Untracked changes",
                 "You have made local changes. Those will be lost if you don't commit them. Are you sure?",
@@ -362,7 +374,6 @@ class Dock(gui.widgets.Dock.Dock):
                 return
             # discard local changes
             self.repo.git.reset("--hard")
-
         # checkout target
         log(f"Checking out {checkoutTarget}")
         try:
