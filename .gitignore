@@ -1,0 +1,12 @@
+__pycache__
+.vscode
+*.asg
+Crates
+todo.txt
+settings.json
+gui/plugins/*
+!gui/plugins/sampleplugin
+dist
+main.spec
+build
+.ruff_cache

@@ -1,0 +1,65 @@
+
+
+QWidget { border-radius: 0px; }
+
+QScrollArea { border: 0px; margin: 0px; padding: 0px; }
+QPlainTextEdit { border: 0px; margin: 0px; padding: 0px; }
+QPlainTextEdit#lineCounterTextEdit { color: gray; }
+
+QFrame#segment { border: 1px; border-style: solid; border-color: gray; }
+QFrame#segment:hover { border: 1px; border-style: solid; border-color: #6666aa; }
+
+QFrame#dirListEntry:hover { background-color: #707e7e7e; }
+
+QPushButton#RedCloseButton {background-color: #ff0000; color: white; padding-top: 0px; padding-bottom: 0px; padding-left: 3px; padding-right: 3px; }
+QPushButton#RedCloseButton:hover {background-color: #ff5555; color: white; }
+
+QPushButton#CloseButton {padding-top: 0px; padding-bottom: 0px; padding-left: 3px; padding-right: 3px; }
+
+QPushButton#noPaddingButton {padding-top: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; }
+
+QPushButton#RedDeleteButton {background-color: #ff0000; color: white; padding-top: 0px; padding-bottom: 0px; padding-left: 0px; padding-right: 0px; }
+QPushButton#RedDeleteButton:hover {background-color: #ff5555; color: white; }
+
+QPushButton#RunButton {color: green; padding-top: 0px; padding-bottom: 0px; padding-left: 3px; padding-right: 3px; }
+QPushButton#RunButton:disabled {color: gray; padding-top: 0px; padding-bottom: 0px; padding-left: 3px; padding-right: 3px; }
+
+QPushButton#small { padding-left: 3px; padding-right: 3px; }
+QPushButton#medium { padding-left: 10px; padding-right: 10px; }
+QPushButton#large { padding-left: 20px; padding-right: 20px; }
+
+QPushButton#leftAlignedButton { text-align:left; }
+QPushButton#rightAlignedButton { text-align:right; }
+
+QPushButton#PassiveButton { text-align:left; }
+QPushButton#subSequenceButton { text-align:left; font-size: 8px; }
+
+QPushButton#UnitCycler { padding-left: 3px; padding-right: 3px }
+
+QPushButton::menu-indicator { width: 0px; }
+
+QPushButton#BigComboBox { text-align:left; }
+
+QMainWindow#gui { border: 0px; border-style: solid; border-color: gray; }
+QStackedWidget#tabStackedWidget { border: 0px; }
+
+QSplitter { border: 0px; margin: 0px; padding: 0px; }
+QSplitter::handle { margin: 0px; padding: 0px; }
+
+QLineEdit#inputField { }
+
+QPushButton#crateButton { font-size: 15px; font-weight: bold; }
+
+QLabel#HintText { color: gray; }
+QLabel#plotStatusLabel { color: red; }
+QLabel#warning { color: red; }
+
+QLabel#sequenceNameLabel { color: gray; qproperty-alignment: AlignCenter; font-size: 10px; border: 1px; border-style: solid; border-color: gray; padding: 0px; }
+
+QLineEdit#VariableLineEdit {}
+
+QToolTip { background-color: black; color: white; border: 1px; border-style: solid; border-color: gray; padding: 0px; }
+
+QTreeView { border: 0px; margin: 0px; padding: 0px; }
+
+

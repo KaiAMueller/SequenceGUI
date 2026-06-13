@@ -1,0 +1,8 @@
+
+QPushButton#crateButton { color: #FFFFFF }
+
+QPushButton { color: #CCCCFF }
+
+QFrame#UnitValueField { background-color: #3F4042; }
+
+QLabel#EmptyConfigWidget { color: gray; background-color: #1e1f22; }
