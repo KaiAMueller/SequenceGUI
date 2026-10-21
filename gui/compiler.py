@@ -455,9 +455,31 @@ def compileDAC(portName, portState):
 
 
 def compileSampler(portName, portState):
-    return {
-        "freq": Input.getValueFromState(portState["freq"], reader=eval, replacer=Variables.replacer),
+    compiledPortState = {
+        "freq": Input.getValueFromState(
+            portState["freq"],
+            reader=eval,
+            replacer=Variables.replacer,
+        ),
     }
+
+    gain_labels = ["1x", "10x", "100x", "1000x"]
+
+    for ch in range(8):
+        gain = portState.get(f"gain{ch}", "1x")
+
+        # Compatibility with integer values from earlier changes
+        if isinstance(gain, int):
+            gain = gain_labels[gain]
+
+        if gain not in gain_labels:
+            raise ValueError(
+                f"Invalid Sampler gain for channel {ch}: {gain!r}"
+            )
+
+        compiledPortState[f"gain{ch}"] = gain
+
+    return compiledPortState
 
 
 def compileUrukul(portName, portState):
