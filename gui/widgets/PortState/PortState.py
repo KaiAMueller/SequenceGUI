@@ -182,11 +182,20 @@ class ConfigDialog(Design.DialogDesign):
                 Design.Spacer(),
                 Design.HBox(
                     Design.Spacer(),
-                    Viewer.InfoButton(crate.sequences[self.segment.sequence.name]["segments"][self.segment.name]["ports"][self.portName]),
+                    Viewer.InfoButton(
+                        crate.sequences[self.segment.sequence.name]
+                        ["segments"][self.segment.name]
+                        ["ports"][self.portName]
+                    ),
                 ),
                 Design.HBox(1, self.doneButton, self.deleteButton),
             )
         )
+
+        # Config widgets were hidden when the previous dialog was closed.
+        # Make them visible again when opening a new configuration dialog.
+        for configWidget in self.configWidgets.values():
+            configWidget.setVisible(True)
 
         self.updateVisibility()
         self.doneButton.setFocus()

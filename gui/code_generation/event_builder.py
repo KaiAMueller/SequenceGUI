@@ -253,6 +253,16 @@ def generateAndAppendCurrentEvents(segment, devicesDict, events):
                 duration=segment["duration"],
                 device=device,
                 sampleRate=portState["freq"],
+                gains=[
+                    portState["gain0"],
+                    portState["gain1"],
+                    portState["gain2"],
+                    portState["gain3"],
+                    portState["gain4"],
+                    portState["gain5"],
+                    portState["gain6"],
+                    portState["gain7"],
+                ],
             )
         elif crate.labsetup[portName]["module"] == "artiq.coredevice.ad9910":
             if portState["mode"] in ["ram_write", "ram_execute"]:

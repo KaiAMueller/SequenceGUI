@@ -6,6 +6,7 @@ import gui.widgets.Input as Input
 import gui.widgets.PortState.PortState as PortState
 import gui.widgets.Variables as Variables
 
+GAIN_OPTIONS = ["1x", "10x", "100x", "1000x"]
 
 class Widget(PortState.Widget):
     def __init__(self, segment, portName):
@@ -28,6 +29,21 @@ class Widget(PortState.Widget):
                 value,
             ),
         )
+        for channel in range(8):
+            key = f"gain{channel}"
+
+            self.configWidgets[key] = Input.ComboBox(
+                itemsGenerateFunction=lambda: GAIN_OPTIONS,
+                default=self.getValue(key),
+                changedCallback=lambda value, key=key:
+                    crate.Sequences.PortStateValueChange(
+                        self.segment.sequence.name,
+                        self.segment.name,
+                        self.portName,
+                        key,
+                        value,
+                    ),
+            )
         self.updatePreviewWidget()
 
     def updatePreviewWidget(self):
@@ -50,6 +66,21 @@ class ConfigDialog(PortState.ConfigDialog):
         super(ConfigDialog, self).__init__(portStateWidget)
 
     def generateConfigurationWidgets(self):
-        return Design.VBox(
-            Design.HBox(QtW.QLabel("Sample Rate"), Design.Spacer(), self.configWidgets["freq"]),
-        )
+        rows = [
+            Design.HBox(
+                QtW.QLabel("Sample Rate"),
+                Design.Spacer(),
+                self.configWidgets["freq"],
+            )
+        ]
+
+        for channel in range(8):
+            rows.append(
+                Design.HBox(
+                    QtW.QLabel(f"Channel {channel} Gain"),
+                    Design.Spacer(),
+                    self.configWidgets[f"gain{channel}"],
+                )
+            )
+
+        return Design.VBox(*rows)

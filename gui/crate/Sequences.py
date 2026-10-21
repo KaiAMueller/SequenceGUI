@@ -39,6 +39,14 @@ DEFAULT_PORTSTATE_VALUES["custom.CurrentDriver"] = {}
 DEFAULT_PORTSTATE_VALUES["custom.CurrentDriver"].update(copy.deepcopy(DEFAULT_PORTSTATE_VALUES["artiq.coredevice.zotino"]))
 DEFAULT_PORTSTATE_VALUES["artiq.coredevice.sampler"] = {
     "freq": {"text": "10", "unit": {"text": "kHz", "factor": 1e3}},
+    "gain0": "1x",
+    "gain1": "1x",
+    "gain2": "1x",
+    "gain3": "1x",
+    "gain4": "1x",
+    "gain5": "1x",
+    "gain6": "1x",
+    "gain7": "1x",
 }
 DEFAULT_PORTSTATE_VALUES["artiq.coredevice.ad9910"] = {
     "switch_enable": True,
