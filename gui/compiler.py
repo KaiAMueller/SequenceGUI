@@ -204,21 +204,69 @@ class TimeRunner:
         self.time = 0
 
 
-def compileCode(seqName):
-    compiledSeq = compileSequence(seqName, TimeRunner())
-    if compiledSeq is None:
-        raise Exception("cant compile because of looped subsequences")
 
-    duration = compiledSeq[-1]["time"] + compiledSeq[-1]["duration"]
-    codeID = int(datetime.now().strftime("%Y%m%d%H%M%S%f"))
-    code = gui.code_generation.artiq_code_generator.generateCode(seqName, compiledSeq, codeID)
+def compileCode(seqName, repetitions=1):
+
+    if not isinstance(repetitions, int) or repetitions < 1:
+        raise ValueError("Repetitions must be a positive integer")
+
+    # Compile the selected sequence normally.
+    compiledSeq = compileSequence(seqName, TimeRunner())
+
+    if compiledSeq is None:
+        raise Exception(
+            "cant compile because of looped subsequences"
+        )
+
+    if not compiledSeq:
+        raise ValueError("Cannot execute an empty sequence")
+
+    # Duration of one execution.
+    single_duration = (
+        compiledSeq[-1]["time"]
+        + compiledSeq[-1]["duration"]
+    )
+
+    # For multiple repetitions, create the equivalent
+    # of a temporary parent sequence containing one
+    # repeated subsequence.
+    if repetitions > 1:
+        compiledSeq = [
+            {
+                "name": "repeat_block",
+                "time": 0,
+                "single_duration": single_duration,
+                "duration": single_duration * repetitions,
+                "repeats": repetitions,
+                "subsequence": compiledSeq,
+            }
+        ]
+
+    duration = single_duration * repetitions
+
+    codeID = int(
+        datetime.now().strftime("%Y%m%d%H%M%S%f")
+    )
+
+    code = (
+        gui.code_generation.artiq_code_generator.generateCode(
+            seqName,
+            compiledSeq,
+            codeID
+        )
+    )
+
     return code, codeID, duration
 
 
-def compileAndRun(seqName):
+
+def compileAndRun(seqName, repetitions=1):
 
     try:
-        compiledCode, codeID, duration = compileCode(seqName)
+        compiledCode, codeID, duration = compileCode(
+            seqName,
+            repetitions=repetitions
+        )
     except Exception as e:
         log(e)
         return

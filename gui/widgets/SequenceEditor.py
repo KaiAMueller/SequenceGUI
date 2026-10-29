@@ -84,10 +84,25 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
             crate.Config.getDockConfig(title, enable_big_run_button),
         )
 
-        self.runButton = Design.RunButton()
-        self.runButton.clicked.connect(self.runCurrentSequence)
-        self.runButton.setToolTip("Compile and run selected sequence")
-        self.runButton.setEnabled(False)
+        # Repeat execution controls
+        self.repeatCount = QtW.QSpinBox()
+        self.repeatCount.setRange(1, 10000)
+        self.repeatCount.setValue(10)
+        self.repeatCount.setFixedWidth(75)
+        self.repeatCount.setToolTip(
+            "Number of repetitions in one ARTIQ experiment"
+        )
+
+        self.repeatRunButton = Design.RunButton()
+        self.repeatRunButton.setToolTip(
+            "Compile and run the selected sequence N times "
+            "inside one ARTIQ experiment"
+        )
+        self.repeatRunButton.clicked.connect(
+            self.runRepeatedSequence
+        )
+        self.repeatRunButton.setEnabled(False)
+
 
         self.showCompiledCodeButton = Design.IconButton("🗔", self.showCompiledCode)
         self.showCompiledCodeButton.setToolTip("Compile and show code")
@@ -100,7 +115,14 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
         self.currentlyRunningSequenceButton.setHidden(True)
         self.currentlyRunningSequenceMenu = None
 
-        self.setRightWidget(Design.HBox(self.showCompiledCodeButton, self.runButton))
+        self.setRightWidget(
+            Design.HBox(
+                self.showCompiledCodeButton,
+                QtW.QLabel("Repeat:"),
+                self.repeatCount,
+                self.repeatRunButton
+            )
+        )
         self.setLeftWidget(Design.HBox(self.currentlyRunningSequenceButton))
 
     def loadCrate(self):
@@ -186,7 +208,7 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
 
     def changeSelection(self, newSelection):
         isValidSelection = newSelection is not None and not crate.sequences[newSelection]["isDir"]
-        self.runButton.setEnabled(isValidSelection)
+        self.repeatRunButton.setEnabled(isValidSelection)
         self.showCompiledCodeButton.setEnabled(isValidSelection)
         super().changeSelection(newSelection)
         if isValidSelection:
@@ -194,11 +216,33 @@ class Dock(gui.widgets.Dock.ListConfigDockExtension):
             self.configWidget.alignDescriptions()
         TableSequenceView.updateTable()
 
-    def runCurrentSequence(self):
+
+    def runRepeatedSequence(self):
+
         if artiq_master_manager.test_mode:
-            Design.errorDialog("Error", "Test device_db is active. Cannot run on Hardware.")
+            Design.errorDialog(
+                "Error",
+                "Test device_db is active. "
+                "Cannot run on Hardware."
+            )
             return
-        gui.compiler.compileAndRun(self.list.currentSelection)
+
+        seqName = self.list.currentSelection
+
+        if seqName is None:
+            return
+
+        repetitions = self.repeatCount.value()
+
+        log(
+            f"Running sequence '{seqName}' "
+            f"{repetitions} times in one experiment"
+        )
+
+        gui.compiler.compileAndRun(
+            seqName,
+            repetitions=repetitions
+        )
 
     def showCompiledCode(self):
         try:
