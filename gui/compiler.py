@@ -205,6 +205,222 @@ class TimeRunner:
 
 
 
+def compileScanPoints(sequence_name, scan_plan):
+    """
+    Compile each scan point into SequenceGUI's intermediate
+    event representation without submitting ARTIQ jobs.
+
+    Returns a list containing the compiled events, parameter
+    values and duration for every scan point.
+    """
+
+    if MultiRun.currentlyRunningVariables is not None:
+        raise RuntimeError(
+            "Cannot compile Core Scan while another "
+            "MultiRun is active."
+        )
+
+    if not scan_plan:
+        raise ValueError("Scan plan is empty")
+
+    # Make an independent copy of the crate variables.
+    scan_variables = copy.deepcopy(crate.variables)
+    compiled_points = []
+
+    try:
+        # Use SequenceGUI's existing variable replacement system.
+        MultiRun.currentlyRunningVariables = scan_variables
+
+        for index, parameters in enumerate(scan_plan):
+
+            # Apply the current scan point.
+            for name, value in parameters.items():
+                if name not in scan_variables:
+                    raise ValueError(
+                        f"Unknown scan variable: {name}"
+                    )
+
+                if scan_variables[name].get("isDir", False):
+                    raise ValueError(
+                        f"Cannot scan a variable directory: {name}"
+                    )
+
+                scan_variables[name]["value"] = str(value)
+
+            # Compile only; do not generate a Python experiment
+            # or submit anything to the scheduler.
+            events = compileSequence(
+                sequence_name,
+                TimeRunner()
+            )
+
+            if events is None or len(events) == 0:
+                raise ValueError(
+                    f"Cannot compile scan point {index + 1}"
+                )
+
+            duration = (
+                events[-1]["time"]
+                + events[-1]["duration"]
+            )
+
+            compiled_points.append({
+                "index": index,
+                "parameters": parameters.copy(),
+                "events": events,
+                "duration": duration,
+            })
+
+    finally:
+        # Always restore normal variable replacement.
+        MultiRun.currentlyRunningVariables = None
+
+    return compiled_points
+
+
+def compileCoreScanCode(sequence_name, scan_plan):
+    """
+    Combine all scan points into one ARTIQ experiment.
+
+    Each point becomes a virtual subsequence with
+    repeats=1. All points are compiled and uploaded
+    together as one experiment.
+    """
+
+    if not scan_plan:
+        raise ValueError("Scan plan is empty")
+
+    # Compile every scan point using its own variables.
+    compiled_points = compileScanPoints(
+        sequence_name,
+        scan_plan
+    )
+
+    combined_sequence = []
+    current_time = 0.0
+
+    for point in compiled_points:
+
+        duration = float(point["duration"])
+
+        if not 0 < duration < float("inf"):
+            raise ValueError(
+                f"Invalid duration at scan point "
+                f"{point['index'] + 1}: {duration}"
+            )
+
+        # Reuse SequenceGUI's existing subsequence structure.
+        combined_sequence.append({
+            "name": f"core_scan_{point['index']}",
+            "time": current_time,
+            "single_duration": duration,
+            "duration": duration,
+            "repeats": 1,
+            "subsequence": copy.deepcopy(point["events"]),
+        })
+
+        current_time += duration
+
+    # One codeID for the entire scan.
+    codeID = int(
+        datetime.now().strftime("%Y%m%d%H%M%S%f")
+    )
+
+    # Generate ONE Python experiment.
+    code = gui.code_generation.artiq_code_generator.generateCode(
+        sequence_name,
+        combined_sequence,
+        codeID
+    )
+
+    return code, codeID, current_time
+
+
+
+def submitCoreScan(sequence_name, scan_plan):
+    """
+    Submit the complete scan as one ARTIQ experiment.
+    """
+
+    # A pre-compilation RPC currently expects the ordinary
+    # per-run workflow. Do not silently skip it.
+    pre_rpc = crate.Sequences.getSequenceValue(
+        sequence_name, "pre_compile_rpc"
+    )
+
+    if pre_rpc is not None:
+        raise ValueError(
+            "Core Scan does not yet support sequences "
+            "with a pre-compilation RPC."
+        )
+
+    # Generate the combined experiment.
+    code, codeID, duration = compileCoreScanCode(
+        sequence_name, scan_plan
+    )
+
+    # Same long-duration warning as normal execution.
+    if duration > 600:
+        if not Design.confirmationDialog(
+            "Core Scan",
+            f"Total scan duration is "
+            f"{timedelta(seconds=duration)}. Continue?"
+        ):
+            return None
+
+    # Save the generated experiment.
+    written_id, file_path, master_path = (
+        write_generated_code_file(
+            code,
+            code_id=codeID,
+            filename_prefix="core_scan_",
+        )
+    )
+
+    # The codeID is embedded in the generated Python.
+    # It must not change when writing the file.
+    if written_id != codeID:
+        os.remove(file_path)
+        raise RuntimeError(
+            "Generated codeID collision. "
+            "Please submit the scan again."
+        )
+
+    # Register one experiment in SequenceGUI's Playlist.
+    Playlist.sequenceCompiled(
+        codeID,
+        sequence_name,
+        copy.deepcopy(crate.variables)
+    )
+
+    try:
+        # Submit the entire scan as ONE ARTIQ job.
+        submit_experiment_file(
+            file=master_path,
+            class_name=util.textToIdentifier(sequence_name),
+            arguments={"codeID": codeID},
+            duration=duration,
+            pipeline_name="main",
+            priority=0,
+            due_date=None,
+            flush=False,
+        )
+
+    except Exception:
+        Playlist.dock.runObserver.removeRunInfo(str(codeID))
+        raise
+
+    log(
+        f"Core Scan {sequence_name} submitted: "
+        f"{len(scan_plan)} points, "
+        f"{duration:.3f} seconds"
+    )
+
+    return codeID
+
+
+
+
 def compileCode(seqName, repetitions=1):
 
     if not isinstance(repetitions, int) or repetitions < 1:

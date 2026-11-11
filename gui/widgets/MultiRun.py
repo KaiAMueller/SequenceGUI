@@ -8,6 +8,7 @@ import PySide6.QtWidgets as QtW
 import PySide6.QtGui as QtG
 
 import threading
+from pathlib import Path
 
 import gui.artiq_master_manager as artiq_master_manager
 import gui.compiler
@@ -18,6 +19,7 @@ import gui.widgets.Input as Input
 import gui.widgets.RPC as RPC
 import gui.widgets.SequenceEditor as SequenceEditor
 import gui.widgets.Viewer as Viewer
+from gui.scan_plan import build_scan_plan
 
 currentlyRunningVariables = None
 
@@ -35,6 +37,18 @@ class Dock(Dock.ListConfigDockExtension):
             backendCallbacks=crate.MultiRun,
             icon="🔁",
         )
+
+        self.coreScanCodeButton = Design.IconButton(
+            "🗔",
+            self.showCoreScanCode
+        )
+
+        self.coreScanCodeButton.setToolTip(
+            "Generate and display Core Scan ARTIQ code"
+        )
+
+        self.coreScanCodeButton.setEnabled(False)
+
         global dock
         dock = self
 
@@ -42,7 +56,41 @@ class Dock(Dock.ListConfigDockExtension):
         self.runButton.setToolTip("Compile and run selected multirun")
         self.runButton.setEnabled(False)
         self.runButton.clicked.connect(self.run)
-        self.setRightWidget(self.runButton)
+
+        # New Core Scan preview button
+        self.coreScanPreviewButton = Design.Button(
+            "Core Scan: Preview",
+            size="medium"
+        )
+        self.coreScanPreviewButton.setToolTip(
+            "Preview all scan values for single-job execution"
+        )
+        self.coreScanPreviewButton.setEnabled(False)
+        self.coreScanPreviewButton.clicked.connect(self.previewCoreScan)
+
+        self.coreScanRunButton = Design.RunButton()
+
+        self.coreScanRunButton.setToolTip(
+            "Execute the entire scan in one ARTIQ experiment"
+        )
+
+        self.coreScanRunButton.setEnabled(False)
+
+        self.coreScanRunButton.clicked.connect(
+            self.runCoreScan
+        )
+
+
+
+
+        self.setRightWidget(
+            Design.HBox(
+                self.coreScanPreviewButton,
+                self.coreScanCodeButton,
+                self.coreScanRunButton,
+                self.runButton
+            )
+        )
 
     def loadCrate(self):
         super(Dock, self).loadCrate(crate.multiruns)
@@ -50,10 +98,42 @@ class Dock(Dock.ListConfigDockExtension):
     def changeSelection(self, newSelection):
         super().changeSelection(newSelection)
         self.runButton.setEnabled(newSelection is not None)
+        self.coreScanPreviewButton.setEnabled(newSelection is not None)
+        self.coreScanRunButton.setEnabled(newSelection is not None)
+        self.coreScanCodeButton.setEnabled(newSelection is not None)
 
     def run(self):
         if self.configWidget is not None:
             self.configWidget.run()
+
+    def runCoreScan(self):
+        if self.configWidget is not None:
+            self.configWidget.runCoreScan()
+
+
+    def previewCoreScan(self):
+        import traceback
+
+        print("[Core Scan] Button clicked", flush=True)
+
+        try:
+            if self.configWidget is None:
+                print("[Core Scan] No MultiRun widget selected")
+                return
+
+            print("[Core Scan] Starting preview", flush=True)
+            self.configWidget.previewCoreScan()
+            print("[Core Scan] Preview finished", flush=True)
+
+        except Exception:
+            print(traceback.format_exc(), flush=True)
+
+    def showCoreScanCode(self):
+        if self.configWidget is not None:
+            self.configWidget.previewCoreScan(
+                show_code=True
+            )
+
 
 
 class Widget(Design.VBox):
@@ -117,6 +197,111 @@ class Widget(Design.VBox):
             Design.errorDialog("Error", "Not implemented.")
 
     
+
+    def previewCoreScan(self, show_code=False):
+
+        if crate.MultiRun.getValue(self.name, "mode") != "scan":
+            Design.errorDialog(
+                "Core Scan",
+                "Only scan mode is supported."
+            )
+            return
+
+        dimensions = crate.MultiRun.getValue(
+            self.name, "dimensions"
+        )
+
+        try:
+            scan_plan = build_scan_plan(dimensions)
+        except (ValueError, TypeError, KeyError) as e:
+            Design.errorDialog("Core Scan Error", str(e))
+            return
+
+        # Limit this initial preview to small scans.
+        if len(scan_plan) > 100:
+            Design.errorDialog(
+                "Core Scan",
+                "The initial preview supports at most 100 scan points."
+            )
+            return
+
+        # Select the sequence to scan.
+        sequence = Design.comboBoxDialog(
+            "Core Scan",
+            "Select a sequence to scan",
+            list(crate.sequences.keys()),
+            defaultOption=SequenceEditor.dock.list.currentSelection,
+        )
+
+        if not sequence:
+            return
+
+        try:
+            compiled_points = gui.compiler.compileScanPoints(
+                sequence, scan_plan
+            )
+        except Exception as e:
+            Design.errorDialog("Core Scan Error", str(e))
+            return
+
+        lines = []
+
+        for point in compiled_points[:10]:
+
+            parameters = ", ".join(
+                f"{name} = {value}"
+                for name, value in point["parameters"].items()
+            )
+
+            lines.append(
+                f"Point {point['index'] + 1}: "
+                f"{parameters}, "
+                f"duration = {point['duration']:.3f} s"
+            )
+
+        total_duration = sum(
+            point["duration"]
+            for point in compiled_points
+        )
+
+
+        # Generate the complete single-job experiment.
+        try:
+            import ast
+
+            code, codeID, combined_duration = (
+                gui.compiler.compileCoreScanCode(
+                    sequence,
+                    scan_plan
+                )
+            )
+
+            # Verify that the generated Python is syntactically valid.
+            ast.parse(code)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            Design.errorDialog(
+                "Core Scan Generation Error",
+                str(e)
+            )
+            return
+
+
+        message = (
+            f"Sequence: {sequence}\n"
+            f"Scan points: {len(compiled_points)}\n"
+            f"Total duration: {total_duration:.3f} s\n\n"
+            + "\n".join(lines)
+        )
+
+        if show_code:
+            Viewer.Dialog(code).exec()
+        else:
+            Design.infoDialog("Core Scan Preview", message)
+
+
     
     def scanRun(self):
         sequence = Design.comboBoxDialog(
@@ -200,6 +385,108 @@ class Widget(Design.VBox):
             QtC.QCoreApplication.processEvents()
         progressDialog.close()
         currentlyRunningVariables = None
+
+
+    def runCoreScan(self):
+
+        # Do not execute when the test device_db is active.
+        if artiq_master_manager.test_mode:
+            Design.errorDialog(
+                "Core Scan",
+                "Test device_db is active. "
+                "Cannot run on hardware."
+            )
+            return
+
+        if crate.MultiRun.getValue(self.name, "mode") != "scan":
+            Design.errorDialog(
+                "Core Scan",
+                "Only scan mode is supported."
+            )
+            return
+
+        dimensions = crate.MultiRun.getValue(
+            self.name, "dimensions"
+        )
+
+        # First implementation: one dimension only.
+        if len(dimensions) != 1:
+            Design.errorDialog(
+                "Core Scan",
+                "Core Scan currently supports "
+                "exactly one dimension."
+            )
+            return
+
+        if not self.checkScanValidity():
+            return
+
+        try:
+            scan_plan = build_scan_plan(dimensions)
+
+        except (ValueError, TypeError, KeyError) as e:
+            Design.errorDialog("Core Scan Error", str(e))
+            return
+
+        if not 1 <= len(scan_plan) <= 100:
+            Design.errorDialog(
+                "Core Scan",
+                "Use between 1 and 100 scan points "
+                "for this initial implementation."
+            )
+            return
+
+        # Select the experiment to scan.
+        sequence = Design.comboBoxDialog(
+            "Core Scan",
+            "Select a sequence to scan",
+            [
+                name
+                for name, data in crate.sequences.items()
+                if not data.get("isDir", False)
+            ],
+            defaultOption=SequenceEditor.dock.list.currentSelection,
+        )
+
+        if not sequence:
+            return
+
+        if not Design.confirmationDialog(
+            "Core Scan",
+            f"Execute '{sequence}' with "
+            f"{len(scan_plan)} scan points "
+            f"in ONE ARTIQ experiment?"
+        ):
+            return
+
+        try:
+            codeID = gui.compiler.submitCoreScan(
+                sequence,
+                scan_plan
+            )
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+            Design.errorDialog(
+                "Core Scan Error",
+                str(e)
+            )
+            return
+
+        if codeID is not None:
+            print(
+                f"[Core Scan] Submitted {sequence} "
+                f"with {len(scan_plan)} points "
+                f"(codeID={codeID})",
+                flush=True
+            )
+
+
+
+
+
 
     def checkScanValidity(self):
         for dimName, dimData in crate.MultiRun.getValue(self.name, "dimensions").items():
